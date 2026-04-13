@@ -2,13 +2,28 @@
 
 ---
 
+## 0.0.1c Alpha — 2026-04-13
+
+Bug fix: Change Password dialog.
+
+### Fixed
+- Clicking an input field in the Change Password dialog incorrectly
+  triggered the OK or Cancel action, making the dialog unusable
+- Root cause: edit control IDs 1 and 2 collided with IDOK and IDCANCEL —
+  Win32 sends WM_COMMAND for both button clicks and edit notifications
+  using the same control ID field
+- Fixed by moving edit control IDs to 201–203 and adding a BN_CLICKED
+  check so only actual button clicks trigger OK/Cancel
+
+---
+
 ## 0.0.1b Alpha — 2026-04-13
 
-Second alpha build. Layout and security fixes.
+Layout and security fixes.
 
-### Changes
-- Window widened to prevent text clipping
-- Hint label and all controls repositioned to fit correctly
+### Fixed
+- Window widened (530 → 640px) — hint label and controls were clipping
+- All controls repositioned to fit the new width
 - Uninstall Service now requires admin login — students cannot disable
   the filter without knowing the password
 
@@ -34,7 +49,7 @@ First working build.
 - Change Password dialog
 - Forgot password: `csec.exe --reset-password` resets to `123456`
 - Onboarding/help dialog (`?` button) — covers setup, usage, security
-  limitations, and emergency recovery steps. Auto-shown on first run.
+  limitations, and emergency recovery steps. Auto-shown on first run
 - Service status indicator — shows running / stopped / not installed
 - Import/Export via standard file open/save dialogs
 - GPL v3 license

@@ -28,7 +28,7 @@
 #define STR(x)  STR_(x)
 
 #define SERVICE_NAME "CSec"
-#define VERSION      "0.0.1b Alpha"
+#define VERSION      "0.0.1c Alpha"
 #define PROXY_PORT   8080
 
 static char g_config_path[MAX_PATH];
@@ -700,17 +700,17 @@ static LRESULT CALLBACK CpwdProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             CreateWindowA("STATIC", "Current password:", WS_CHILD|WS_VISIBLE,
                           10, y+2, 120, 18, hwnd, NULL, hi, NULL);
             e_cur = CreateWindowA("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|ES_PASSWORD,
-                                  135, y, 150, 22, hwnd, (HMENU)1, hi, NULL);
+                                  135, y, 150, 22, hwnd, (HMENU)201, hi, NULL);
             y += 34;
             CreateWindowA("STATIC", "New password:", WS_CHILD|WS_VISIBLE,
                           10, y+2, 120, 18, hwnd, NULL, hi, NULL);
             e_new = CreateWindowA("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|ES_PASSWORD,
-                                  135, y, 150, 22, hwnd, (HMENU)2, hi, NULL);
+                                  135, y, 150, 22, hwnd, (HMENU)202, hi, NULL);
             y += 34;
             CreateWindowA("STATIC", "Confirm:", WS_CHILD|WS_VISIBLE,
                           10, y+2, 120, 18, hwnd, NULL, hi, NULL);
             e_cfm = CreateWindowA("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|ES_PASSWORD,
-                                  135, y, 150, 22, hwnd, (HMENU)3, hi, NULL);
+                                  135, y, 150, 22, hwnd, (HMENU)203, hi, NULL);
             y += 42;
             CreateWindowA("BUTTON", "OK", WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON,
                           60, y, 80, 26, hwnd, (HMENU)IDOK, hi, NULL);
@@ -720,7 +720,7 @@ static LRESULT CALLBACK CpwdProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             return 0;
         }
         case WM_COMMAND:
-            if (LOWORD(wp) == IDOK) {
+            if (LOWORD(wp) == IDOK && HIWORD(wp) == BN_CLICKED) {
                 char cfm[128];
                 GetWindowTextA(e_new, g_cpwd_new, sizeof(g_cpwd_new));
                 GetWindowTextA(e_cfm, cfm, sizeof(cfm));
@@ -734,7 +734,7 @@ static LRESULT CALLBACK CpwdProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 }
                 GetWindowTextA(e_cur, g_cpwd_current, sizeof(g_cpwd_current));
                 DestroyWindow(hwnd);
-            } else if (LOWORD(wp) == IDCANCEL) {
+            } else if (LOWORD(wp) == IDCANCEL && HIWORD(wp) == BN_CLICKED) {
                 g_cpwd_current[0] = g_cpwd_new[0] = '\0';
                 DestroyWindow(hwnd);
             }

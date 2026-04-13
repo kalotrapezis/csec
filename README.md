@@ -3,6 +3,8 @@
 Blocks all websites except the ones you allow.
 Runs as a Windows Service. Survives reboot. No internet connection required.
 
+**Version:** 0.0.1c Alpha
+
 ---
 
 ## What it does
@@ -39,19 +41,19 @@ Runs as a Windows Service. Survives reboot. No internet connection required.
 Open `csec.exe` and log in to manage the allowlist.
 
 ```
-┌─ CSec 0.0.1b Alpha — Classroom Web Filter ─────────────────────────┐
+┌─ CSec 0.0.1c Alpha — Classroom Web Filter ──────────────────────────┐
 │  Admin Access  [_________password_________]  [Login]            [?] │
-│  URL           [_________domain____________]  [Add]                 │
-│                Enter domain only — e.g. code.org                    │
-│ ┌─────────────────────────────────────────────────────────────────┐ │
-│ │ Allowed URLs                                                    │ │
-│ │ ☐  code.org                                                     │ │
-│ │ ☐  googleapis.com                                               │ │
-│ └─────────────────────────────────────────────────────────────────┘ │
-│  [Remove selected] [Import from JSON] [Export to JSON] [Chg Passwd] │
-│ ────────────────────────────────────────────────────────────────── │
-│  Service: running        [Install Service]  [Uninstall Service]     │
-└─────────────────────────────────────────────────────────────────────┘
+│  URL           [_________domain____________]  [Add]                  │
+│                Enter domain only — e.g. code.org                     │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │ Allowed URLs                                                     │ │
+│ │ ☐  code.org                                                      │ │
+│ │ ☐  googleapis.com                                                │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│  [Remove selected] [Import from JSON] [Export to JSON] [Chg Passwd]  │
+│ ─────────────────────────────────────────────────────────────────── │
+│  Service: running         [Install Service]  [Uninstall Service]     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Adding domains
@@ -71,7 +73,7 @@ automatically.
 
 Adding these domains also adds the supporting CDN and auth domains they need:
 
-| You add | Also added |
+| You add | Also added automatically |
 |---|---|
 | `google.com` | googleapis.com, gstatic.com, googleusercontent.com, … |
 | `youtube.com` | ytimg.com, googlevideo.com, youtu.be, … |
@@ -95,7 +97,7 @@ the file to each student machine via USB or shared folder, then open
 
 Default password: `123456` — change it after first login (Change Password button).
 
-Forgot the password? Open CMD as Administrator and run:
+Forgot the password? Open CMD as Administrator in the CSec folder and run:
 
 ```
 csec.exe --reset-password
@@ -121,12 +123,12 @@ csec.exe --uninstall
 
 CSec sets the Windows system proxy. It is a deterrent, not a full lockdown.
 
-| Bypass | Risk | Fix |
+| Bypass | Risk | Mitigation |
 |---|---|---|
-| Firefox (own proxy settings) | High | Remove Firefox or lock via Firefox policy |
+| Firefox (own proxy settings) | High | Remove Firefox or lock via Firefox admin policy |
 | Local Administrator account | High | Student accounts must not have admin rights |
-| Phone hotspot / USB tethering | Medium | Disable USB or use a router filter |
-| VPN app | Medium | Restrict software installs |
+| Phone hotspot / USB tethering | Medium | Disable USB ports or use a router-level filter |
+| VPN app | Medium | Restrict software installs with a limited user account |
 
 ---
 
@@ -135,7 +137,13 @@ CSec sets the Windows system proxy. It is a deterrent, not a full lockdown.
 Requires MinGW-w64 (`i686-w64-mingw32-gcc`).
 
 ```
-i686-w64-mingw32-gcc -std=c99 -O2 -Iproxy -o csec.exe csec.c proxy/filter.c \
+make
+```
+
+Or manually:
+
+```
+i686-w64-mingw32-gcc -std=c99 -O2 -o csec.exe csec.c filter.c \
   -static -lws2_32 -ladvapi32 -lcrypt32 -lcomctl32 -lcomdlg32 -lshell32 -mwindows
 ```
 
