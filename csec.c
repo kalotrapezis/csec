@@ -451,7 +451,7 @@ static int svc_uninstall(void) {
 
 /* Window width/height (client area) */
 #define WIN_W 640
-#define WIN_H 452
+#define WIN_H 474
 
 static HWND g_hwnd;
 static HWND g_edit_pass, g_btn_login;
@@ -1468,33 +1468,33 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             /* "?" always visible, even before login */
             CreateWindowA("BUTTON", "?", WS_CHILD|WS_VISIBLE,
                           600, 17, 24, 24, hwnd, (HMENU)ID_BTN_HELP, hi, NULL);
-            /* Row 2 — filter mode (whitelist / blacklist) */
+            /* Row 2 — filter mode (whitelist / blacklist), two stacked rows */
             CreateWindowA("STATIC", "Filter mode:", WS_CHILD|WS_VISIBLE,
                           15, 51, 100, 18, hwnd, NULL, hi, NULL);
             g_radio_white = CreateWindowA("BUTTON",
-                          "Whitelist — block all except list",
+                          "Whitelist - block all except list",
                           WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON|WS_GROUP,
-                          120, 49, 220, 22, hwnd, (HMENU)ID_RADIO_WHITE, hi, NULL);
+                          120, 49, 490, 20, hwnd, (HMENU)ID_RADIO_WHITE, hi, NULL);
             g_radio_black = CreateWindowA("BUTTON",
-                          "Blacklist — allow all except list",
+                          "Blacklist - allow all except list",
                           WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON,
-                          350, 49, 220, 22, hwnd, (HMENU)ID_RADIO_BLACK, hi, NULL);
+                          120, 71, 490, 20, hwnd, (HMENU)ID_RADIO_BLACK, hi, NULL);
             /* Row 3 — add URL */
             CreateWindowA("STATIC", "URL", WS_CHILD|WS_VISIBLE,
-                          15, 84, 100, 18, hwnd, NULL, hi, NULL);
+                          15, 106, 100, 18, hwnd, NULL, hi, NULL);
             g_edit_url = CreateWindowA("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER,
-                                       120, 81, 370, 24, hwnd, (HMENU)ID_EDIT_URL, hi, NULL);
+                                       120, 103, 370, 24, hwnd, (HMENU)ID_EDIT_URL, hi, NULL);
             g_btn_add  = CreateWindowA("BUTTON", "Add", WS_CHILD|WS_VISIBLE,
-                                       500, 81, 114, 24, hwnd, (HMENU)ID_BTN_ADD, hi, NULL);
+                                       500, 103, 114, 24, hwnd, (HMENU)ID_BTN_ADD, hi, NULL);
             /* Hint below URL field */
             CreateWindowA("STATIC",
-                          "Enter domain only — e.g.  code.org   (no https://, no www., no /path)",
+                          "Enter domain only - e.g.  code.org   (no https://, no www., no /path)",
                           WS_CHILD|WS_VISIBLE|SS_LEFTNOWORDWRAP,
-                          120, 108, 500, 16, hwnd, NULL, hi, NULL);
+                          120, 130, 500, 16, hwnd, NULL, hi, NULL);
             /* Domain list */
             g_lv = CreateWindowExA(WS_EX_CLIENTEDGE, WC_LISTVIEWA, "",
                                    WS_CHILD|WS_VISIBLE|LVS_REPORT|LVS_SHOWSELALWAYS|LVS_SINGLESEL,
-                                   15, 126, 610, 220, hwnd, (HMENU)ID_LV, hi, NULL);
+                                   15, 148, 610, 220, hwnd, (HMENU)ID_LV, hi, NULL);
             ListView_SetExtendedListViewStyle(g_lv,
                 LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
             LVCOLUMNA col = {0};
@@ -1504,33 +1504,33 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ListView_InsertColumn(g_lv, 0, &col);
             /* Bottom row — 5 equal buttons (120px each, 2px gaps) */
             g_btn_remove  = CreateWindowA("BUTTON", "Remove selected",
-                                          WS_CHILD|WS_VISIBLE, 15,  356, 120, 26,
+                                          WS_CHILD|WS_VISIBLE, 15,  378, 120, 26,
                                           hwnd, (HMENU)ID_BTN_REMOVE, hi, NULL);
             g_btn_import  = CreateWindowA("BUTTON", "Import from JSON",
-                                          WS_CHILD|WS_VISIBLE, 137, 356, 120, 26,
+                                          WS_CHILD|WS_VISIBLE, 137, 378, 120, 26,
                                           hwnd, (HMENU)ID_BTN_IMPORT, hi, NULL);
             g_btn_export  = CreateWindowA("BUTTON", "Export to JSON",
-                                          WS_CHILD|WS_VISIBLE, 259, 356, 120, 26,
+                                          WS_CHILD|WS_VISIBLE, 259, 378, 120, 26,
                                           hwnd, (HMENU)ID_BTN_EXPORT, hi, NULL);
-            g_btn_presets = CreateWindowA("BUTTON", "Block Presets",
-                                          WS_CHILD|WS_VISIBLE, 381, 356, 120, 26,
+            g_btn_presets = CreateWindowA("BUTTON", "Block Lists",
+                                          WS_CHILD|WS_VISIBLE, 381, 378, 120, 26,
                                           hwnd, (HMENU)ID_BTN_PRESETS, hi, NULL);
             g_btn_chgpwd  = CreateWindowA("BUTTON", "Change Password",
-                                          WS_CHILD|WS_VISIBLE, 503, 356, 122, 26,
+                                          WS_CHILD|WS_VISIBLE, 503, 378, 122, 26,
                                           hwnd, (HMENU)ID_BTN_CHGPWD, hi, NULL);
             /* Separator */
             CreateWindowExA(0, "STATIC", "", WS_CHILD|WS_VISIBLE|SS_ETCHEDHORZ,
-                            15, 390, 610, 2, hwnd, NULL, hi, NULL);
+                            15, 412, 610, 2, hwnd, NULL, hi, NULL);
             /* Service status + install/uninstall — always visible, no login needed */
             g_static_svc = CreateWindowA("STATIC", "Service: checking...",
                                          WS_CHILD|WS_VISIBLE,
-                                         15, 401, 220, 20, hwnd, (HMENU)ID_STATIC_SVC, hi, NULL);
+                                         15, 423, 220, 20, hwnd, (HMENU)ID_STATIC_SVC, hi, NULL);
             g_btn_install = CreateWindowA("BUTTON", "Install Service",
                                           WS_CHILD|WS_VISIBLE,
-                                          245, 399, 170, 28, hwnd, (HMENU)ID_BTN_INSTALL, hi, NULL);
+                                          245, 421, 170, 28, hwnd, (HMENU)ID_BTN_INSTALL, hi, NULL);
             g_btn_uninstall = CreateWindowA("BUTTON", "Uninstall Service",
                                             WS_CHILD|WS_VISIBLE,
-                                            423, 399, 182, 28, hwnd, (HMENU)ID_BTN_UNINSTALL, hi, NULL);
+                                            423, 421, 182, 28, hwnd, (HMENU)ID_BTN_UNINSTALL, hi, NULL);
             /* Set initial radio state (config already loaded before CreateWindow) */
             SendMessage(g_radio_white, BM_SETCHECK, BST_CHECKED, 0);
             enable_controls(FALSE);
