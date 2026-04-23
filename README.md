@@ -1,22 +1,23 @@
 # CSec — Classroom Web Filter
 
-Blocks all websites except the ones you allow.
-Runs as a Windows Service. Survives reboot. No internet connection required.
+Blocks all websites except the ones you allow, or allows everything except
+the sites you block. Runs as a Windows Service. Survives reboot.
+No internet connection required.
 
-**Version:** 0.0.2 Alpha
+**Version:** 0.0.3 Alpha
 
 ---
 
 ## What it does
 
-- **Whitelist mode** (default): every domain not on the list is blocked — HTTP and HTTPS
-- **Blacklist mode**: every domain on the list is blocked — all other sites are allowed
+- **Whitelist mode** (default): every site is blocked unless it is on your list
+- **Blacklist mode**: every site is allowed unless it is on your list
 - One entry covers the domain and all subdomains: `code.org` covers
   `studio.code.org`, `www.code.org`, etc.
 - The filter stays active through reboot — students cannot escape by restarting
 - Managed through a password-protected GUI (`csec.exe`)
 - Lists are plain JSON files — easy to share via USB or a shared folder
-- Built-in preset lists for gambling, adult content, social media, and online games
+- 18 ready-made block lists included (gambling, adult, social media, malware, …)
 
 ---
 
@@ -27,23 +28,51 @@ Runs as a Windows Service. Survives reboot. No internet connection required.
 
 ---
 
+## What's in the package
+
+```
+csec.exe          — the filter service, proxy, and admin GUI in one binary
+csec-config.json  — your settings (created on first run)
+Lists\            — block list files (The Block List Project, MIT License)
+  gambling.txt      2,500 domains
+  porn.txt        500,282 domains
+  tiktok.txt        3,699 domains
+  facebook.txt     22,459 domains
+  twitter.txt       1,193 domains
+  ads.txt         154,554 domains
+  tracking.txt     15,070 domains
+  malware.txt     435,220 domains
+  phishing.txt    190,222 domains
+  fraud.txt       196,082 domains
+  scam.txt          1,274 domains
+  drugs.txt        26,031 domains
+  crypto.txt       23,761 domains
+  piracy.txt        2,153 domains
+  torrent.txt       2,624 domains
+  ransomware.txt    1,904 domains
+  redirect.txt    108,684 domains
+  abuse.txt       435,155 domains
+```
+
+---
+
 ## Setup
 
-1. Copy `csec.exe` and `csec-config.json` to the same folder on the target machine
+1. Copy the entire `CSec` folder (exe + config + Lists\) to the target machine
 2. Open `csec.exe`
 3. Click **Install Service** at the bottom of the window
 4. Approve the Administrator prompt
-5. The filter is now active — all sites blocked until you add domains
-6. Log in with the default password `123456` and add your allowed domains
+5. The filter is now active
+6. Log in with the default password `123456` and configure your list
 
 ---
 
 ## Admin interface
 
-Open `csec.exe` and log in to manage the domain list.
+Open `csec.exe` and log in to manage the filter.
 
 ```
-┌─ CSec 0.0.2 Alpha — Classroom Web Filter ────────────────────────────┐
+┌─ CSec 0.0.3 Alpha — Classroom Web Filter ────────────────────────────┐
 │  Admin Access  [_________password_________]  [Login]             [?] │
 │  Filter mode:  ● Whitelist — block all except list                    │
 │                ○ Blacklist — allow all except list                    │
@@ -54,13 +83,15 @@ Open `csec.exe` and log in to manage the domain list.
 │ │ ☐  code.org                                                       │ │
 │ │ ☐  googleapis.com                                                 │ │
 │ └───────────────────────────────────────────────────────────────────┘ │
-│  [Remove sel.] [Import JSON] [Export JSON] [Block Presets] [Chg Pwd]  │
+│  [Remove sel.] [Import JSON] [Export JSON] [Block Lists] [Chg Pwd]    │
 │ ──────────────────────────────────────────────────────────────────── │
 │  Service: running        [Install Service]  [Uninstall Service]       │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-### Filter mode
+---
+
+## Filter mode
 
 After logging in, select how the list is applied:
 
@@ -69,36 +100,57 @@ After logging in, select how the list is applied:
 | **Whitelist** (default) | Every site is blocked **unless** it is on the list |
 | **Blacklist** | Every site is allowed **unless** it is on the list |
 
-Switching mode saves immediately and takes effect without restarting the service.
+Switching mode saves immediately — no service restart needed.
 
-**Recommended for most classrooms:** Whitelist — add only the sites students need,
-everything else is blocked.
+**Recommended for most classrooms:** Whitelist — add only the sites students
+need, everything else is blocked by default.
 
-**For bring-your-own-device or unrestricted labs:** Blacklist — use with the preset
-category lists to block gambling, adult content, and social media.
+**For labs or BYOD environments:** Blacklist — allow everything and use the
+block lists to ban specific categories.
 
-### Block Presets
+---
 
-Click **Block Presets** (log in first) to enable ready-made category lists:
+## Block Lists
 
-| Category | Domains blocked | Includes |
+Click **Block Lists** (log in first) to enable or disable the included
+category lists. A dialog shows every `.txt` file found in the `Lists\` folder:
+
+| List file | Domains | What it blocks |
 |---|---|---|
-| Gambling sites | 32 | bet365, DraftKings, PokerStars, stake.com, … |
-| Adult content / OnlyFans | 23 | Pornhub, OnlyFans, Chaturbate, Fansly, … |
-| Social media | 20 | TikTok, Instagram, X, Snapchat, Reddit, Discord, … |
-| Online games | 18 | Roblox, Poki, CrazyGames, Friv, Miniclip, … |
+| `gambling.txt` | 2,500 | Online betting and casino sites |
+| `porn.txt` | 500,282 | Adult and explicit content |
+| `tiktok.txt` | 3,699 | TikTok and related infrastructure |
+| `facebook.txt` | 22,459 | Facebook and Instagram infrastructure |
+| `twitter.txt` | 1,193 | Twitter / X infrastructure |
+| `ads.txt` | 154,554 | Advertising networks |
+| `tracking.txt` | 15,070 | Analytics and tracking services |
+| `malware.txt` | 435,220 | Known malware distribution sites |
+| `phishing.txt` | 190,222 | Phishing and credential harvesting |
+| `fraud.txt` | 196,082 | Fraud and scam infrastructure |
+| `scam.txt` | 1,274 | Scam sites |
+| `drugs.txt` | 26,031 | Drug-related sites |
+| `crypto.txt` | 23,761 | Cryptocurrency and mining sites |
+| `piracy.txt` | 2,153 | Piracy and illegal download sites |
+| `torrent.txt` | 2,624 | Torrent sites |
+| `ransomware.txt` | 1,904 | Known ransomware distribution |
+| `redirect.txt` | 108,684 | Malicious redirect services |
+| `abuse.txt` | 435,155 | Abuse and spam infrastructure |
 
-Tick a category and click **OK** — domains are added to the list and the
-service is notified immediately. Unticking removes them.
+Tick the lists you want and click **OK** — the service reloads and starts
+blocking those domains immediately.
 
-> **Note:** Presets work best in **Blacklist** mode. In Whitelist mode the
-> checked domains are *allowed*, not blocked.
+> **Block Lists only work in Blacklist mode.** In Whitelist mode everything
+> is already blocked by default so the lists have no effect.
 
-Domain lists are curated from:
-- [The Block List Project](https://github.com/blocklistproject/Lists) — MIT License
-- [StevenBlack/hosts](https://github.com/StevenBlack/hosts) — MIT License
+To add your own list: drop any `.txt` file in the `Lists\` folder using the
+same hosts format (`0.0.0.0 domain.com`) and it will appear in the dialog
+automatically.
 
-### Adding domains
+Lists sourced from [The Block List Project](https://github.com/blocklistproject/Lists) — MIT License.
+
+---
+
+## Adding domains manually
 
 Type the domain — no `http://`, no `www.`, no path:
 
@@ -111,7 +163,9 @@ khanacademy.org
 You can also paste a full URL — CSec strips everything down to the domain
 automatically.
 
-### Known sites — automatic extras
+---
+
+## Known sites — automatic extras
 
 Adding these domains also adds the supporting CDN and auth domains they need:
 
@@ -122,16 +176,20 @@ Adding these domains also adds the supporting CDN and auth domains they need:
 | `microsoft.com` | microsoftonline.com, live.com, windowsupdate.com, … |
 | `office.com` | microsoft.com, microsoftonline.com, sharepoint.com, … |
 
-### Removing domains
+---
+
+## Removing domains
 
 Tick the checkbox next to each domain you want to remove, then click
 **Remove selected**.
 
-### Sharing the allowlist
+---
 
-Build your list on the teacher machine, click **Export to JSON**, copy
-the file to each student machine via USB or shared folder, then open
-`csec.exe` on each and click **Import from JSON**.
+## Sharing your list
+
+Build your list on the teacher machine, click **Export to JSON**, copy the
+file to each student machine via USB or shared folder, then open `csec.exe`
+on each and click **Import from JSON**.
 
 ---
 
@@ -176,16 +234,10 @@ CSec sets the Windows system proxy. It is a deterrent, not a full lockdown.
 
 ## Building from source
 
-Requires MinGW-w64 (`i686-w64-mingw32-gcc`).
+Requires MinGW-w64 (`gcc` targeting `i686-w64-mingw32`).
 
 ```
-make
-```
-
-Or manually:
-
-```
-i686-w64-mingw32-gcc -std=c99 -O2 -o csec.exe csec.c filter.c \
+gcc -std=c99 -O2 -o csec.exe csec.c filter.c \
   -static -lws2_32 -ladvapi32 -lcrypt32 -lcomctl32 -lcomdlg32 -lshell32 -mwindows
 ```
 
@@ -194,3 +246,5 @@ i686-w64-mingw32-gcc -std=c99 -O2 -o csec.exe csec.c filter.c \
 ## License
 
 GPL v3 — see [LICENSE](LICENSE).
+
+Block lists: [The Block List Project](https://github.com/blocklistproject/Lists) — MIT License.

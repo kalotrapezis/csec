@@ -2,6 +2,52 @@
 
 ---
 
+## 0.0.3 Alpha — 2026-04-23
+
+Real block lists from The Block List Project.
+
+### Added
+- **Block Lists dialog** — click **Block Lists** after login to enable or
+  disable any `.txt` file from the `Lists\` folder. Domain counts and
+  category names are read from each file's header automatically
+- **18 list files included** — gambling (2,500), porn (500,282), tiktok
+  (3,699), facebook (22,459), twitter (1,193), ads (154,554), tracking
+  (15,070), malware (435,220), phishing (190,222), fraud (196,082),
+  scam (1,274), drugs (26,031), crypto (23,761), piracy (2,153),
+  torrent (2,624), ransomware (1,904), redirect (108,684), abuse (435,155)
+- **Fast lookup** — each enabled list is loaded into a sorted array at
+  service startup; domain checks use binary search (O(log n)), so even a
+  500K-domain list costs ~19 string comparisons per request
+- **Drop-in extensible** — place any additional `.txt` file in the
+  `Lists\` folder using the standard hosts format (`0.0.0.0 domain.com`)
+  and it appears in the dialog without any code changes
+
+### Changed
+- Block Lists are only active in **Blacklist mode** (in Whitelist mode
+  everything is already blocked by default)
+- Service reloads list files on startup and whenever the admin saves
+  changes via the GUI
+- `MAX_DOMAINS` raised from 512 to 1024
+
+### Source
+Lists from [The Block List Project](https://github.com/blocklistproject/Lists) — MIT License
+
+---
+
+## 0.0.2 Alpha — 2026-04-23
+
+Whitelist / Blacklist mode toggle.
+
+### Added
+- **Filter mode radio buttons** — choose between Whitelist (block all
+  except your list) or Blacklist (allow all except your list) directly
+  from the main window, no restart required
+- The domain list column header updates to "Allowed URLs" or "Blocked URLs"
+  to reflect the active mode
+- Mode is saved to config and applied immediately by the running service
+
+---
+
 ## 0.0.1c Alpha — 2026-04-13
 
 Bug fix: Change Password dialog.
