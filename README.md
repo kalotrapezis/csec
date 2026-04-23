@@ -1,3 +1,12 @@
+
+<img width="818" height="634" alt="εικόνα" src="https://github.com/user-attachments/assets/5a0f14ac-587f-45d4-b051-f70f853ef32a" />
+
+<img width="822" height="628" alt="εικόνα" src="https://github.com/user-attachments/assets/cd256b14-5644-4fc4-b7da-a340343403ce" />
+
+<img width="864" height="636" alt="εικόνα" src="https://github.com/user-attachments/assets/68daf91e-c515-439a-b0aa-029eee4cd756" />
+
+
+
 # CSec — Classroom Web Filter
 
 Blocks all websites except the ones you allow, or allows everything except
