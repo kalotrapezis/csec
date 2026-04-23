@@ -1,9 +1,8 @@
+<img width="823" height="651" alt="εικόνα" src="https://github.com/user-attachments/assets/a56a9f6d-cea7-47b2-a1bf-b86ae4571381" />
 
-<img width="818" height="634" alt="εικόνα" src="https://github.com/user-attachments/assets/5a0f14ac-587f-45d4-b051-f70f853ef32a" />
+<img width="623" height="563" alt="εικόνα" src="https://github.com/user-attachments/assets/e45eff18-2334-4e25-a64b-866319d59071" />
 
-<img width="822" height="628" alt="εικόνα" src="https://github.com/user-attachments/assets/cd256b14-5644-4fc4-b7da-a340343403ce" />
-
-<img width="864" height="636" alt="εικόνα" src="https://github.com/user-attachments/assets/68daf91e-c515-439a-b0aa-029eee4cd756" />
+<img width="704" height="687" alt="εικόνα" src="https://github.com/user-attachments/assets/6767e550-238d-4fae-9a44-e2cd32a52f16" />
 
 
 
