@@ -28,7 +28,7 @@
 #define STR(x)  STR_(x)
 
 #define SERVICE_NAME "CSec"
-#define VERSION      "0.0.1c Alpha"
+#define VERSION      "0.0.2 Alpha"
 #define PROXY_PORT   8080
 
 static char g_config_path[MAX_PATH];
@@ -373,16 +373,20 @@ static int svc_uninstall(void) {
 #define ID_BTN_INSTALL  111
 #define ID_BTN_UNINSTALL 112
 #define ID_STATIC_SVC   113
+#define ID_RADIO_WHITE  114
+#define ID_RADIO_BLACK  115
+#define ID_BTN_PRESETS  116
 
 /* Window width/height (client area) */
 #define WIN_W 640
-#define WIN_H 430
+#define WIN_H 452
 
 static HWND g_hwnd;
 static HWND g_edit_pass, g_btn_login;
+static HWND g_radio_white, g_radio_black;
 static HWND g_edit_url,  g_btn_add;
 static HWND g_lv;
-static HWND g_btn_remove, g_btn_import, g_btn_export, g_btn_chgpwd;
+static HWND g_btn_remove, g_btn_import, g_btn_export, g_btn_presets, g_btn_chgpwd;
 static HWND g_btn_install, g_btn_uninstall, g_static_svc;
 static CSec_Config g_acfg;   /* admin copy of config */
 static int  g_logged_in = 0;
@@ -542,7 +546,15 @@ static void notify_service(void) {
     CloseServiceHandle(scm);
 }
 
+static void lv_update_header(void) {
+    LVCOLUMNA col = {0};
+    col.mask    = LVCF_TEXT;
+    col.pszText = g_acfg.blacklist_mode ? "Blocked URLs" : "Allowed URLs";
+    ListView_SetColumn(g_lv, 0, &col);
+}
+
 static void lv_refresh(void) {
+    lv_update_header();
     ListView_DeleteAllItems(g_lv);
     for (int i = 0; i < g_acfg.count; i++) {
         LVITEMA it = {0};
@@ -553,14 +565,197 @@ static void lv_refresh(void) {
     }
 }
 
+/* -------------------------------------------------------------------------
+   Preset category lists
+   Domains curated from:
+     - The Block List Project  https://github.com/blocklistproject/Lists (MIT)
+     - StevenBlack/hosts       https://github.com/StevenBlack/hosts       (MIT)
+   ---------------------------------------------------------------------- */
+
+#define PRESET_GAMBLING (1 << 0)
+#define PRESET_ADULT    (1 << 1)
+#define PRESET_SOCIAL   (1 << 2)
+#define PRESET_GAMING   (1 << 3)
+
+static const char *PRESET_GAMBLING_DOMAINS[] = {
+    "bet365.com", "draftkings.com", "fanduel.com", "betway.com",
+    "888casino.com", "pokerstars.com", "williamhill.com", "ladbrokes.com",
+    "unibet.com", "bwin.com", "betfair.com", "bovada.lv",
+    "mybookie.ag", "betonline.ag", "sportsbetting.ag", "1xbet.com",
+    "betsson.com", "casumo.com", "leovegas.com", "partypoker.com",
+    "888poker.com", "paddypower.com", "skybet.com", "betvictor.com",
+    "pointsbet.com", "caesarscasino.com", "stake.com", "rollbit.com",
+    "roobet.com", "jackpotcity.com", "888sport.com", "spin.com",
+    NULL
+};
+
+static const char *PRESET_ADULT_DOMAINS[] = {
+    "pornhub.com", "xvideos.com", "xhamster.com", "redtube.com",
+    "youporn.com", "tube8.com", "spankbang.com", "xnxx.com",
+    "brazzers.com", "bangbros.com", "onlyfans.com", "fansly.com",
+    "chaturbate.com", "cam4.com", "myfreecams.com", "livejasmin.com",
+    "bongacams.com", "stripchat.com", "naughtyamerica.com", "mofos.com",
+    "realitykings.com", "kink.com", "babes.com",
+    NULL
+};
+
+static const char *PRESET_SOCIAL_DOMAINS[] = {
+    "facebook.com", "instagram.com", "twitter.com", "x.com",
+    "tiktok.com", "snapchat.com", "reddit.com", "pinterest.com",
+    "tumblr.com", "bereal.com", "threads.net", "vk.com",
+    "twitch.tv", "kick.com", "9gag.com", "ifunny.co",
+    "discord.com", "bsky.app", "mastodon.social", "clubhouse.com",
+    NULL
+};
+
+static const char *PRESET_GAMING_DOMAINS[] = {
+    "roblox.com", "fortnite.com", "steampowered.com",
+    "kongregate.com", "poki.com", "friv.com", "miniclip.com",
+    "addictinggames.com", "crazygames.com", "y8.com", "agame.com",
+    "silvergames.com", "armorgames.com", "newgrounds.com", "itch.io",
+    "4399.com", "frivgames.com", "kizi.com",
+    NULL
+};
+
+typedef struct {
+    const char  *name;
+    int          flag;
+    const char **domains;
+} PresetCat;
+
+static const PresetCat PRESET_CATS[] = {
+    { "Gambling sites",           PRESET_GAMBLING, PRESET_GAMBLING_DOMAINS },
+    { "Adult content / OnlyFans", PRESET_ADULT,    PRESET_ADULT_DOMAINS    },
+    { "Social media",             PRESET_SOCIAL,   PRESET_SOCIAL_DOMAINS   },
+    { "Online games",             PRESET_GAMING,   PRESET_GAMING_DOMAINS   },
+};
+
+#define N_PRESET_CATS 4
+
+static int count_domains(const char **arr) {
+    int n = 0; while (arr[n]) n++; return n;
+}
+
+/* -------------------------------------------------------------------------
+   Preset dialog — checkbox list of categories
+   ---------------------------------------------------------------------- */
+
+#define ID_CHK_BASE 300   /* 300..303 for the 4 checkboxes */
+
+static BOOL g_preset_done;
+
+static LRESULT CALLBACK PresetProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+        case WM_CREATE: {
+            HINSTANCE hi = ((CREATESTRUCTA *)lp)->hInstance;
+            int y = 10;
+            CreateWindowA("STATIC",
+                "Tick a category to add its domains to your list.",
+                WS_CHILD|WS_VISIBLE, 10, y, 390, 16, hwnd, NULL, hi, NULL);
+            y += 20;
+            CreateWindowA("STATIC",
+                g_acfg.blacklist_mode
+                    ? "Blacklist mode: checked categories will be blocked."
+                    : "Whitelist mode: checked categories will be allowed (not blocked).",
+                WS_CHILD|WS_VISIBLE, 10, y, 390, 16, hwnd, NULL, hi, NULL);
+            y += 30;
+            for (int i = 0; i < N_PRESET_CATS; i++) {
+                char label[128];
+                sprintf(label, "%s  (%d domains)",
+                        PRESET_CATS[i].name,
+                        count_domains(PRESET_CATS[i].domains));
+                HWND chk = CreateWindowA("BUTTON", label,
+                    WS_CHILD|WS_VISIBLE|BS_AUTOCHECKBOX,
+                    10, y, 390, 22, hwnd, (HMENU)(UINT_PTR)(ID_CHK_BASE + i), hi, NULL);
+                SendMessage(chk, BM_SETCHECK,
+                    (g_acfg.preset_flags & PRESET_CATS[i].flag) ? BST_CHECKED : BST_UNCHECKED, 0);
+                y += 30;
+            }
+            y += 6;
+            CreateWindowA("STATIC",
+                "Tip: use with Blacklist mode to allow all sites except selected categories.",
+                WS_CHILD|WS_VISIBLE, 10, y, 390, 16, hwnd, NULL, hi, NULL);
+            y += 30;
+            CreateWindowA("BUTTON", "OK", WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON,
+                100, y, 80, 28, hwnd, (HMENU)IDOK, hi, NULL);
+            CreateWindowA("BUTTON", "Cancel", WS_CHILD|WS_VISIBLE,
+                210, y, 80, 28, hwnd, (HMENU)IDCANCEL, hi, NULL);
+            return 0;
+        }
+        case WM_COMMAND:
+            if (LOWORD(wp) == IDOK && HIWORD(wp) == BN_CLICKED) {
+                for (int i = 0; i < N_PRESET_CATS; i++) {
+                    HWND chk = GetDlgItem(hwnd, ID_CHK_BASE + i);
+                    int now = (SendMessage(chk, BM_GETCHECK, 0, 0) == BST_CHECKED);
+                    int was = (g_acfg.preset_flags & PRESET_CATS[i].flag) ? 1 : 0;
+                    if (now && !was) {
+                        for (int j = 0; PRESET_CATS[i].domains[j]; j++)
+                            domain_add(&g_acfg, PRESET_CATS[i].domains[j]);
+                        g_acfg.preset_flags |= PRESET_CATS[i].flag;
+                    } else if (!now && was) {
+                        for (int j = 0; PRESET_CATS[i].domains[j]; j++)
+                            domain_remove(&g_acfg, PRESET_CATS[i].domains[j]);
+                        g_acfg.preset_flags &= ~PRESET_CATS[i].flag;
+                    }
+                }
+                config_save(&g_acfg, g_config_path);
+                notify_service();
+                lv_refresh();
+                DestroyWindow(hwnd);
+            } else if (LOWORD(wp) == IDCANCEL && HIWORD(wp) == BN_CLICKED) {
+                DestroyWindow(hwnd);
+            }
+            break;
+        case WM_DESTROY:
+            g_preset_done = TRUE;
+            break;
+    }
+    return DefWindowProcA(hwnd, msg, wp, lp);
+}
+
+static void do_presets(void) {
+    HINSTANCE hi = GetModuleHandleA(NULL);
+    WNDCLASSA wc = {0};
+    wc.lpfnWndProc   = PresetProc;
+    wc.hInstance     = hi;
+    wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+    wc.hCursor       = LoadCursorA(NULL, IDC_ARROW);
+    wc.lpszClassName = "CSec_Presets";
+    RegisterClassA(&wc);
+
+    g_preset_done = FALSE;
+    RECT r; GetWindowRect(g_hwnd, &r);
+    int pw = 430, ph = 262;
+    int px = r.left + (r.right  - r.left - pw) / 2;
+    int py = r.top  + (r.bottom - r.top  - ph) / 2;
+
+    HWND dlg = CreateWindowA("CSec_Presets", "Block Presets",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+        px, py, pw, ph, g_hwnd, NULL, hi, NULL);
+    ShowWindow(dlg, SW_SHOW);
+
+    EnableWindow(g_hwnd, FALSE);
+    MSG m;
+    while (!g_preset_done) {
+        BOOL ret = GetMessage(&m, NULL, 0, 0);
+        if (ret <= 0) { if (ret == 0) PostQuitMessage((int)m.wParam); break; }
+        TranslateMessage(&m); DispatchMessage(&m);
+    }
+    EnableWindow(g_hwnd, TRUE);
+    SetForegroundWindow(g_hwnd);
+}
+
 static void enable_controls(int on) {
+    EnableWindow(g_radio_white, on);
+    EnableWindow(g_radio_black, on);
     EnableWindow(g_edit_url,   on);
     EnableWindow(g_btn_add,    on);
     EnableWindow(g_lv,         on);
-    EnableWindow(g_btn_remove, on);
-    EnableWindow(g_btn_import, on);
-    EnableWindow(g_btn_export, on);
-    EnableWindow(g_btn_chgpwd, on);
+    EnableWindow(g_btn_remove,  on);
+    EnableWindow(g_btn_import,  on);
+    EnableWindow(g_btn_export,  on);
+    EnableWindow(g_btn_presets, on);
+    EnableWindow(g_btn_chgpwd,  on);
 }
 
 static void do_login(void) {
@@ -577,6 +772,11 @@ static void do_login(void) {
     EnableWindow(g_edit_pass, FALSE);
     EnableWindow(g_btn_login, FALSE);
     enable_controls(TRUE);
+    /* Sync radio buttons to saved mode */
+    SendMessage(g_radio_white, BM_SETCHECK,
+                g_acfg.blacklist_mode ? BST_UNCHECKED : BST_CHECKED, 0);
+    SendMessage(g_radio_black, BM_SETCHECK,
+                g_acfg.blacklist_mode ? BST_CHECKED : BST_UNCHECKED, 0);
     lv_refresh();
     SetFocus(g_edit_url);
 }
@@ -1041,22 +1241,33 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             /* "?" always visible, even before login */
             CreateWindowA("BUTTON", "?", WS_CHILD|WS_VISIBLE,
                           600, 17, 24, 24, hwnd, (HMENU)ID_BTN_HELP, hi, NULL);
-            /* Row 2 — add URL */
+            /* Row 2 — filter mode (whitelist / blacklist) */
+            CreateWindowA("STATIC", "Filter mode:", WS_CHILD|WS_VISIBLE,
+                          15, 51, 100, 18, hwnd, NULL, hi, NULL);
+            g_radio_white = CreateWindowA("BUTTON",
+                          "Whitelist — block all except list",
+                          WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON|WS_GROUP,
+                          120, 49, 220, 22, hwnd, (HMENU)ID_RADIO_WHITE, hi, NULL);
+            g_radio_black = CreateWindowA("BUTTON",
+                          "Blacklist — allow all except list",
+                          WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON,
+                          350, 49, 220, 22, hwnd, (HMENU)ID_RADIO_BLACK, hi, NULL);
+            /* Row 3 — add URL */
             CreateWindowA("STATIC", "URL", WS_CHILD|WS_VISIBLE,
-                          15, 56, 100, 18, hwnd, NULL, hi, NULL);
+                          15, 84, 100, 18, hwnd, NULL, hi, NULL);
             g_edit_url = CreateWindowA("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER,
-                                       120, 53, 370, 24, hwnd, (HMENU)ID_EDIT_URL, hi, NULL);
+                                       120, 81, 370, 24, hwnd, (HMENU)ID_EDIT_URL, hi, NULL);
             g_btn_add  = CreateWindowA("BUTTON", "Add", WS_CHILD|WS_VISIBLE,
-                                       500, 53, 114, 24, hwnd, (HMENU)ID_BTN_ADD, hi, NULL);
+                                       500, 81, 114, 24, hwnd, (HMENU)ID_BTN_ADD, hi, NULL);
             /* Hint below URL field */
             CreateWindowA("STATIC",
                           "Enter domain only — e.g.  code.org   (no https://, no www., no /path)",
                           WS_CHILD|WS_VISIBLE|SS_LEFTNOWORDWRAP,
-                          120, 80, 500, 16, hwnd, NULL, hi, NULL);
+                          120, 108, 500, 16, hwnd, NULL, hi, NULL);
             /* Domain list */
             g_lv = CreateWindowExA(WS_EX_CLIENTEDGE, WC_LISTVIEWA, "",
                                    WS_CHILD|WS_VISIBLE|LVS_REPORT|LVS_SHOWSELALWAYS|LVS_SINGLESEL,
-                                   15, 100, 610, 240, hwnd, (HMENU)ID_LV, hi, NULL);
+                                   15, 126, 610, 220, hwnd, (HMENU)ID_LV, hi, NULL);
             ListView_SetExtendedListViewStyle(g_lv,
                 LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
             LVCOLUMNA col = {0};
@@ -1064,32 +1275,37 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             col.cx      = 580;
             col.pszText = "Allowed URLs";
             ListView_InsertColumn(g_lv, 0, &col);
-            /* Bottom row — 4 equal buttons */
-            g_btn_remove = CreateWindowA("BUTTON", "Remove selected",
-                                         WS_CHILD|WS_VISIBLE, 15,  350, 146, 26,
-                                         hwnd, (HMENU)ID_BTN_REMOVE, hi, NULL);
-            g_btn_import = CreateWindowA("BUTTON", "Import from JSON",
-                                         WS_CHILD|WS_VISIBLE, 169, 350, 146, 26,
-                                         hwnd, (HMENU)ID_BTN_IMPORT, hi, NULL);
-            g_btn_export = CreateWindowA("BUTTON", "Export to JSON",
-                                         WS_CHILD|WS_VISIBLE, 323, 350, 146, 26,
-                                         hwnd, (HMENU)ID_BTN_EXPORT, hi, NULL);
-            g_btn_chgpwd = CreateWindowA("BUTTON", "Change Password",
-                                         WS_CHILD|WS_VISIBLE, 477, 350, 148, 26,
-                                         hwnd, (HMENU)ID_BTN_CHGPWD, hi, NULL);
+            /* Bottom row — 5 equal buttons (120px each, 2px gaps) */
+            g_btn_remove  = CreateWindowA("BUTTON", "Remove selected",
+                                          WS_CHILD|WS_VISIBLE, 15,  356, 120, 26,
+                                          hwnd, (HMENU)ID_BTN_REMOVE, hi, NULL);
+            g_btn_import  = CreateWindowA("BUTTON", "Import from JSON",
+                                          WS_CHILD|WS_VISIBLE, 137, 356, 120, 26,
+                                          hwnd, (HMENU)ID_BTN_IMPORT, hi, NULL);
+            g_btn_export  = CreateWindowA("BUTTON", "Export to JSON",
+                                          WS_CHILD|WS_VISIBLE, 259, 356, 120, 26,
+                                          hwnd, (HMENU)ID_BTN_EXPORT, hi, NULL);
+            g_btn_presets = CreateWindowA("BUTTON", "Block Presets",
+                                          WS_CHILD|WS_VISIBLE, 381, 356, 120, 26,
+                                          hwnd, (HMENU)ID_BTN_PRESETS, hi, NULL);
+            g_btn_chgpwd  = CreateWindowA("BUTTON", "Change Password",
+                                          WS_CHILD|WS_VISIBLE, 503, 356, 122, 26,
+                                          hwnd, (HMENU)ID_BTN_CHGPWD, hi, NULL);
             /* Separator */
             CreateWindowExA(0, "STATIC", "", WS_CHILD|WS_VISIBLE|SS_ETCHEDHORZ,
-                            15, 384, 610, 2, hwnd, NULL, hi, NULL);
+                            15, 390, 610, 2, hwnd, NULL, hi, NULL);
             /* Service status + install/uninstall — always visible, no login needed */
             g_static_svc = CreateWindowA("STATIC", "Service: checking...",
                                          WS_CHILD|WS_VISIBLE,
-                                         15, 395, 220, 20, hwnd, (HMENU)ID_STATIC_SVC, hi, NULL);
+                                         15, 401, 220, 20, hwnd, (HMENU)ID_STATIC_SVC, hi, NULL);
             g_btn_install = CreateWindowA("BUTTON", "Install Service",
                                           WS_CHILD|WS_VISIBLE,
-                                          245, 393, 170, 28, hwnd, (HMENU)ID_BTN_INSTALL, hi, NULL);
+                                          245, 399, 170, 28, hwnd, (HMENU)ID_BTN_INSTALL, hi, NULL);
             g_btn_uninstall = CreateWindowA("BUTTON", "Uninstall Service",
                                             WS_CHILD|WS_VISIBLE,
-                                            423, 393, 182, 28, hwnd, (HMENU)ID_BTN_UNINSTALL, hi, NULL);
+                                            423, 399, 182, 28, hwnd, (HMENU)ID_BTN_UNINSTALL, hi, NULL);
+            /* Set initial radio state (config already loaded before CreateWindow) */
+            SendMessage(g_radio_white, BM_SETCHECK, BST_CHECKED, 0);
             enable_controls(FALSE);
             SetFocus(g_edit_pass);
             return 0;
@@ -1097,11 +1313,28 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_COMMAND:
             switch (LOWORD(wp)) {
                 case ID_BTN_LOGIN:  do_login();           break;
+                case ID_RADIO_WHITE:
+                    if (g_logged_in && HIWORD(wp) == BN_CLICKED) {
+                        g_acfg.blacklist_mode = 0;
+                        config_save(&g_acfg, g_config_path);
+                        notify_service();
+                        lv_update_header();
+                    }
+                    break;
+                case ID_RADIO_BLACK:
+                    if (g_logged_in && HIWORD(wp) == BN_CLICKED) {
+                        g_acfg.blacklist_mode = 1;
+                        config_save(&g_acfg, g_config_path);
+                        notify_service();
+                        lv_update_header();
+                    }
+                    break;
                 case ID_BTN_ADD:    if (g_logged_in) do_add();             break;
                 case ID_BTN_REMOVE: if (g_logged_in) do_remove_selected(); break;
                 case ID_BTN_IMPORT: if (g_logged_in) do_import();          break;
-                case ID_BTN_EXPORT: if (g_logged_in) do_export();          break;
-                case ID_BTN_CHGPWD: if (g_logged_in) do_change_password(); break;
+                case ID_BTN_EXPORT:   if (g_logged_in) do_export();          break;
+                case ID_BTN_PRESETS:  if (g_logged_in) do_presets();        break;
+                case ID_BTN_CHGPWD:   if (g_logged_in) do_change_password(); break;
                 case ID_BTN_HELP:     show_help(); break;
                 case ID_BTN_INSTALL:  do_install_service(); break;
                 case ID_BTN_UNINSTALL:do_uninstall_service(); break;

@@ -3,18 +3,20 @@
 Blocks all websites except the ones you allow.
 Runs as a Windows Service. Survives reboot. No internet connection required.
 
-**Version:** 0.0.1c Alpha
+**Version:** 0.0.2 Alpha
 
 ---
 
 ## What it does
 
-- Every domain not on the allowlist is blocked — HTTP and HTTPS
+- **Whitelist mode** (default): every domain not on the list is blocked — HTTP and HTTPS
+- **Blacklist mode**: every domain on the list is blocked — all other sites are allowed
 - One entry covers the domain and all subdomains: `code.org` covers
   `studio.code.org`, `www.code.org`, etc.
 - The filter stays active through reboot — students cannot escape by restarting
 - Managed through a password-protected GUI (`csec.exe`)
-- Allowlists are plain JSON files — easy to share via USB or a shared folder
+- Lists are plain JSON files — easy to share via USB or a shared folder
+- Built-in preset lists for gambling, adult content, social media, and online games
 
 ---
 
@@ -38,23 +40,63 @@ Runs as a Windows Service. Survives reboot. No internet connection required.
 
 ## Admin interface
 
-Open `csec.exe` and log in to manage the allowlist.
+Open `csec.exe` and log in to manage the domain list.
 
 ```
-┌─ CSec 0.0.1c Alpha — Classroom Web Filter ──────────────────────────┐
-│  Admin Access  [_________password_________]  [Login]            [?] │
-│  URL           [_________domain____________]  [Add]                  │
-│                Enter domain only — e.g. code.org                     │
-│ ┌──────────────────────────────────────────────────────────────────┐ │
-│ │ Allowed URLs                                                     │ │
-│ │ ☐  code.org                                                      │ │
-│ │ ☐  googleapis.com                                                │ │
-│ └──────────────────────────────────────────────────────────────────┘ │
-│  [Remove selected] [Import from JSON] [Export to JSON] [Chg Passwd]  │
-│ ─────────────────────────────────────────────────────────────────── │
-│  Service: running         [Install Service]  [Uninstall Service]     │
-└──────────────────────────────────────────────────────────────────────┘
+┌─ CSec 0.0.2 Alpha — Classroom Web Filter ────────────────────────────┐
+│  Admin Access  [_________password_________]  [Login]             [?] │
+│  Filter mode:  ● Whitelist — block all except list                    │
+│                ○ Blacklist — allow all except list                    │
+│  URL           [_________domain____________]  [Add]                   │
+│                Enter domain only — e.g. code.org                      │
+│ ┌───────────────────────────────────────────────────────────────────┐ │
+│ │ Allowed URLs                                                      │ │
+│ │ ☐  code.org                                                       │ │
+│ │ ☐  googleapis.com                                                 │ │
+│ └───────────────────────────────────────────────────────────────────┘ │
+│  [Remove sel.] [Import JSON] [Export JSON] [Block Presets] [Chg Pwd]  │
+│ ──────────────────────────────────────────────────────────────────── │
+│  Service: running        [Install Service]  [Uninstall Service]       │
+└───────────────────────────────────────────────────────────────────────┘
 ```
+
+### Filter mode
+
+After logging in, select how the list is applied:
+
+| Mode | Behaviour |
+|---|---|
+| **Whitelist** (default) | Every site is blocked **unless** it is on the list |
+| **Blacklist** | Every site is allowed **unless** it is on the list |
+
+Switching mode saves immediately and takes effect without restarting the service.
+
+**Recommended for most classrooms:** Whitelist — add only the sites students need,
+everything else is blocked.
+
+**For bring-your-own-device or unrestricted labs:** Blacklist — use with the preset
+category lists to block gambling, adult content, and social media.
+
+### Block Presets
+
+Click **Block Presets** (log in first) to enable ready-made category lists:
+
+| Category | Domains blocked | Includes |
+|---|---|---|
+| Gambling sites | 32 | bet365, DraftKings, PokerStars, stake.com, … |
+| Adult content / OnlyFans | 23 | Pornhub, OnlyFans, Chaturbate, Fansly, … |
+| Social media | 20 | TikTok, Instagram, X, Snapchat, Reddit, Discord, … |
+| Online games | 18 | Roblox, Poki, CrazyGames, Friv, Miniclip, … |
+
+Tick a category and click **OK** — domains are added to the list and the
+service is notified immediately. Unticking removes them.
+
+> **Note:** Presets work best in **Blacklist** mode. In Whitelist mode the
+> checked domains are *allowed*, not blocked.
+
+Domain lists are curated from:
+- [The Block List Project](https://github.com/blocklistproject/Lists) — MIT License
+- [StevenBlack/hosts](https://github.com/StevenBlack/hosts) — MIT License
 
 ### Adding domains
 

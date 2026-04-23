@@ -1,7 +1,7 @@
 #ifndef CSEC_FILTER_H
 #define CSEC_FILTER_H
 
-#define MAX_DOMAINS     512
+#define MAX_DOMAINS     1024
 #define MAX_DOMAIN_LEN  256
 #define CONFIG_FILE     "csec-config.json"
 
@@ -9,6 +9,8 @@ typedef struct {
     char domains[MAX_DOMAINS][MAX_DOMAIN_LEN];
     int  count;
     char admin_hash[65]; /* SHA-256 hex, null-terminated */
+    int  blacklist_mode; /* 0 = whitelist (default), 1 = blacklist */
+    int  preset_flags;   /* bitmask of active preset categories */
 } CSec_Config;
 
 /* Load config from path. Returns 1 on success, 0 on failure (missing file = empty config). */

@@ -103,6 +103,15 @@ static int config_parse(CSec_Config *cfg, const char *json) {
         } else if (strcmp(key, "admin_hash") == 0) {
             p = parse_string(p, cfg->admin_hash, sizeof(cfg->admin_hash));
             if (!p) return 0;
+        } else if (strcmp(key, "mode") == 0) {
+            char mode[32];
+            p = parse_string(p, mode, sizeof(mode));
+            if (!p) return 0;
+            cfg->blacklist_mode = (strcmp(mode, "blacklist") == 0) ? 1 : 0;
+        } else if (strcmp(key, "presets") == 0) {
+            int val = 0;
+            while (isdigit((unsigned char)*p)) { val = val * 10 + (*p - '0'); p++; }
+            cfg->preset_flags = val;
         } else {
             /* Unknown key — skip value (strings and arrays only in our format) */
             if (*p == '"') {
@@ -163,7 +172,10 @@ int config_save(const CSec_Config *cfg, const char *path) {
         fprintf(f, "\n    \"%s\"", cfg->domains[i]);
     }
     if (cfg->count > 0) fprintf(f, "\n  ");
-    fprintf(f, "],\n  \"admin_hash\": \"%s\"\n}\n", cfg->admin_hash);
+    fprintf(f, "],\n");
+    fprintf(f, "  \"admin_hash\": \"%s\",\n", cfg->admin_hash);
+    fprintf(f, "  \"mode\": \"%s\",\n", cfg->blacklist_mode ? "blacklist" : "whitelist");
+    fprintf(f, "  \"presets\": %d\n}\n", cfg->preset_flags);
 
     fclose(f);
     return 1;
@@ -182,20 +194,22 @@ int domain_allowed(const CSec_Config *cfg, const char *hostname) {
     char *colon = strchr(host, ':');
     if (colon) *colon = '\0';
 
-    for (int i = 0; i < cfg->count; i++) {
+    int found = 0;
+    for (int i = 0; i < cfg->count && !found; i++) {
         const char *d = cfg->domains[i];
         size_t dlen = strlen(d);
         size_t hlen = strlen(host);
 
         /* Exact match */
-        if (strcmp(host, d) == 0) return 1;
+        if (strcmp(host, d) == 0) { found = 1; break; }
 
         /* Subdomain match: host ends with "." + d */
         if (hlen > dlen + 1 &&
             host[hlen - dlen - 1] == '.' &&
-            strcmp(host + hlen - dlen, d) == 0) return 1;
+            strcmp(host + hlen - dlen, d) == 0) { found = 1; break; }
     }
-    return 0;
+    /* Whitelist: allow if found. Blacklist: allow if NOT found. */
+    return cfg->blacklist_mode ? !found : found;
 }
 
 int domain_add(CSec_Config *cfg, const char *domain) {
