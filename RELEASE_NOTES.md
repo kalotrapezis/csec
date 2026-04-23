@@ -2,6 +2,26 @@
 
 ---
 
+## 0.0.4 Alpha — 2026-04-23
+
+Proxy settings lock — students cannot bypass the filter by changing proxy settings.
+
+### Added
+- **Proxy settings lock** — when the service is installed, the Windows proxy
+  settings panel (Settings → Network & Internet → Proxy, and Internet Options)
+  is grayed out and inaccessible to users
+- The lock is applied to every user account on the machine: the current user,
+  all other loaded user profiles, and the `.DEFAULT` hive (new accounts)
+- Implemented via the Group Policy registry key
+  `HKCU\Software\Policies\Microsoft\Internet Explorer\Control Panel\Proxy = 1`
+  written under `HKEY_USERS` for each profile
+
+### Changed
+- Lock is removed automatically when the service is uninstalled — proxy access
+  is fully restored alongside internet access
+
+---
+
 ## 0.0.3 Alpha — 2026-04-23
 
 Real block lists from The Block List Project.

@@ -4,7 +4,7 @@ Blocks all websites except the ones you allow, or allows everything except
 the sites you block. Runs as a Windows Service. Survives reboot.
 No internet connection required.
 
-**Version:** 0.0.3 Alpha
+**Version:** 0.0.4 Alpha
 
 ---
 
@@ -72,7 +72,7 @@ Lists\            — block list files (The Block List Project, MIT License)
 Open `csec.exe` and log in to manage the filter.
 
 ```
-┌─ CSec 0.0.3 Alpha — Classroom Web Filter ────────────────────────────┐
+┌─ CSec 0.0.4 Alpha — Classroom Web Filter ────────────────────────────┐
 │  Admin Access  [_________password_________]  [Login]             [?] │
 │  Filter mode:  ● Whitelist — block all except list                    │
 │                ○ Blacklist — allow all except list                    │

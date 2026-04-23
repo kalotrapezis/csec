@@ -28,7 +28,7 @@
 #define STR(x)  STR_(x)
 
 #define SERVICE_NAME "CSec"
-#define VERSION      "0.0.3 Alpha"
+#define VERSION      "0.0.4 Alpha"
 #define PROXY_PORT   8080
 
 static char g_config_path[MAX_PATH];
@@ -50,6 +50,7 @@ static void resolve_config_path(void) {
 #define INET_KEY     "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"
 #define POLICY_KEY   "SOFTWARE\\Policies\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"
 #define HKLM_INET    "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"
+#define IE_CP_KEY    "Software\\Policies\\Microsoft\\Internet Explorer\\Control Panel"
 
 static void registry_set_proxy(int enable) {
     const char *proxy = "127.0.0.1:" STR(PROXY_PORT);
@@ -93,6 +94,66 @@ static void registry_set_proxy(int enable) {
             RegCloseKey(hk);
         }
     }
+}
+
+/* Apply or remove the IE Control Panel "Proxy" policy lock.
+   When lock=1, the proxy settings panel is grayed out for all users.
+   Applies to: HKCU (admin), every loaded HKU hive (active users), HKU\.DEFAULT. */
+static void registry_lock_proxy(int lock) {
+    const char *sub = IE_CP_KEY;
+    DWORD val = lock ? 1 : 0;
+
+    /* Helper: set Proxy=val in hive\sub, creating keys as needed */
+    HKEY roots[2] = { HKEY_CURRENT_USER, HKEY_USERS };
+    int  nroots    = 2;
+
+    /* HKCU — the admin user performing install/uninstall */
+    {
+        HKEY hk;
+        if (RegCreateKeyExA(HKEY_CURRENT_USER, sub,
+                            0, NULL, 0, KEY_SET_VALUE, NULL, &hk, NULL) == ERROR_SUCCESS) {
+            RegSetValueExA(hk, "Proxy", 0, REG_DWORD, (const BYTE *)&val, sizeof(val));
+            RegCloseKey(hk);
+        }
+    }
+
+    /* All loaded user hives under HKU (catches any currently logged-in accounts) */
+    {
+        DWORD i = 0;
+        char  sid[256];
+        DWORD sid_len = sizeof(sid);
+        while (RegEnumKeyExA(HKEY_USERS, i++, sid, &sid_len,
+                             NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+            sid_len = sizeof(sid);
+            /* Skip .DEFAULT here — handled separately below */
+            if (strcmp(sid, ".DEFAULT") == 0) continue;
+            /* Skip _Classes sub-keys (e.g. S-1-5-18_Classes) */
+            if (strstr(sid, "_Classes")) continue;
+
+            char full[512];
+            snprintf(full, sizeof(full), "%s\\%s", sid, sub);
+            HKEY hk;
+            if (RegCreateKeyExA(HKEY_USERS, full,
+                                0, NULL, 0, KEY_SET_VALUE, NULL, &hk, NULL) == ERROR_SUCCESS) {
+                RegSetValueExA(hk, "Proxy", 0, REG_DWORD, (const BYTE *)&val, sizeof(val));
+                RegCloseKey(hk);
+            }
+        }
+    }
+
+    /* HKU\.DEFAULT — applies to future/new accounts and the welcome screen */
+    {
+        char full[512];
+        snprintf(full, sizeof(full), ".DEFAULT\\%s", sub);
+        HKEY hk;
+        if (RegCreateKeyExA(HKEY_USERS, full,
+                            0, NULL, 0, KEY_SET_VALUE, NULL, &hk, NULL) == ERROR_SUCCESS) {
+            RegSetValueExA(hk, "Proxy", 0, REG_DWORD, (const BYTE *)&val, sizeof(val));
+            RegCloseKey(hk);
+        }
+    }
+
+    (void)roots; (void)nroots;
 }
 
 /* =========================================================================
@@ -329,7 +390,8 @@ static int svc_install(void) {
     fa.dwResetPeriod = INFINITE; fa.cActions = 3; fa.lpsaActions = actions;
     ChangeServiceConfig2A(svc, SERVICE_CONFIG_FAILURE_ACTIONS, &fa);
 
-    registry_set_proxy(1); /* set HKCU now, while running as real admin user */
+    registry_set_proxy(1);   /* configure proxy (HKCU + HKLM) */
+    registry_lock_proxy(1);  /* lock the settings panel for all users */
     StartServiceA(svc, 0, NULL);
     CloseServiceHandle(svc); CloseServiceHandle(scm);
 
@@ -360,7 +422,8 @@ static int svc_uninstall(void) {
     }
     DeleteService(svc);
     CloseServiceHandle(svc); CloseServiceHandle(scm);
-    registry_set_proxy(0);
+    registry_set_proxy(0);   /* restore proxy (remove HKCU/HKLM entries) */
+    registry_lock_proxy(0);  /* unlock the settings panel */
     MessageBoxA(NULL, "CSec removed.\nInternet access restored.", "CSec", MB_OK | MB_ICONINFORMATION);
     return 0;
 }
