@@ -337,6 +337,7 @@ static void WINAPI ServiceMain(DWORD argc, LPSTR *argv) {
     InitializeCriticalSection(&g_cfg_lock);
     resolve_config_path();
     cfg_reload();
+    registry_lock_proxy(1); /* re-enforce lock on every reboot/service start */
 
     g_svc_h = RegisterServiceCtrlHandlerA(SERVICE_NAME, svc_ctrl);
     if (!g_svc_h) return;
