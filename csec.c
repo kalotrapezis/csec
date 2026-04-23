@@ -32,6 +32,7 @@
 #define PROXY_PORT   8080
 
 static char g_config_path[MAX_PATH];
+static char g_lists_dir[MAX_PATH];   /* <exe dir>\lists */
 
 static void resolve_config_path(void) {
     char exe[MAX_PATH];
@@ -39,6 +40,7 @@ static void resolve_config_path(void) {
     char *sep = strrchr(exe, '\\');
     if (sep) *(sep + 1) = '\0';
     snprintf(g_config_path, MAX_PATH, "%s%s", exe, CONFIG_FILE);
+    snprintf(g_lists_dir,   MAX_PATH, "%slists", exe);
 }
 
 /* =========================================================================
@@ -104,6 +106,10 @@ static CSec_Config  g_cfg;
 static CRITICAL_SECTION g_cfg_lock;
 static volatile int g_running = 1;
 
+/* forward declarations — defined later in the admin GUI section */
+static int  extlists_blocked(const char *host);
+static void extlists_load_all(void);
+
 typedef struct { SOCKET from; SOCKET to; } TunnelArgs;
 
 static int recv_line(SOCKET s, char *buf, int len) {
@@ -159,6 +165,7 @@ static DWORD WINAPI handle_client(LPVOID arg) {
 
         EnterCriticalSection(&g_cfg_lock);
         int ok = domain_allowed(&g_cfg, host);
+        if (ok && g_cfg.blacklist_mode) ok = !extlists_blocked(host);
         LeaveCriticalSection(&g_cfg_lock);
         if (!ok) { send(client, "HTTP/1.1 403 Forbidden\r\n\r\n", 26, 0); goto done; }
 
@@ -184,6 +191,7 @@ static DWORD WINAPI handle_client(LPVOID arg) {
         if (!host[0]) goto done;
         EnterCriticalSection(&g_cfg_lock);
         int ok = domain_allowed(&g_cfg, host);
+        if (ok && g_cfg.blacklist_mode) ok = !extlists_blocked(host);
         LeaveCriticalSection(&g_cfg_lock);
         if (!ok) {
             const char *deny = "HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\n"
@@ -212,6 +220,7 @@ static void cfg_reload(void) {
         EnterCriticalSection(&g_cfg_lock);
         memcpy(&g_cfg, &tmp, sizeof(g_cfg));
         LeaveCriticalSection(&g_cfg_lock);
+        extlists_load_all(); /* reload block list files (may be slow for large lists) */
     }
 }
 
@@ -566,141 +575,296 @@ static void lv_refresh(void) {
 }
 
 /* -------------------------------------------------------------------------
-   Preset category lists
-   Domains curated from:
-     - The Block List Project  https://github.com/blocklistproject/Lists (MIT)
-     - StevenBlack/hosts       https://github.com/StevenBlack/hosts       (MIT)
+   External block lists — large domain files from the lists\ folder
+   Format: hosts file  "0.0.0.0 domain.com"  (The Block List Project)
    ---------------------------------------------------------------------- */
 
-#define PRESET_GAMBLING (1 << 0)
-#define PRESET_ADULT    (1 << 1)
-#define PRESET_SOCIAL   (1 << 2)
-#define PRESET_GAMING   (1 << 3)
-
-static const char *PRESET_GAMBLING_DOMAINS[] = {
-    "bet365.com", "draftkings.com", "fanduel.com", "betway.com",
-    "888casino.com", "pokerstars.com", "williamhill.com", "ladbrokes.com",
-    "unibet.com", "bwin.com", "betfair.com", "bovada.lv",
-    "mybookie.ag", "betonline.ag", "sportsbetting.ag", "1xbet.com",
-    "betsson.com", "casumo.com", "leovegas.com", "partypoker.com",
-    "888poker.com", "paddypower.com", "skybet.com", "betvictor.com",
-    "pointsbet.com", "caesarscasino.com", "stake.com", "rollbit.com",
-    "roobet.com", "jackpotcity.com", "888sport.com", "spin.com",
-    NULL
-};
-
-static const char *PRESET_ADULT_DOMAINS[] = {
-    "pornhub.com", "xvideos.com", "xhamster.com", "redtube.com",
-    "youporn.com", "tube8.com", "spankbang.com", "xnxx.com",
-    "brazzers.com", "bangbros.com", "onlyfans.com", "fansly.com",
-    "chaturbate.com", "cam4.com", "myfreecams.com", "livejasmin.com",
-    "bongacams.com", "stripchat.com", "naughtyamerica.com", "mofos.com",
-    "realitykings.com", "kink.com", "babes.com",
-    NULL
-};
-
-static const char *PRESET_SOCIAL_DOMAINS[] = {
-    "facebook.com", "instagram.com", "twitter.com", "x.com",
-    "tiktok.com", "snapchat.com", "reddit.com", "pinterest.com",
-    "tumblr.com", "bereal.com", "threads.net", "vk.com",
-    "twitch.tv", "kick.com", "9gag.com", "ifunny.co",
-    "discord.com", "bsky.app", "mastodon.social", "clubhouse.com",
-    NULL
-};
-
-static const char *PRESET_GAMING_DOMAINS[] = {
-    "roblox.com", "fortnite.com", "steampowered.com",
-    "kongregate.com", "poki.com", "friv.com", "miniclip.com",
-    "addictinggames.com", "crazygames.com", "y8.com", "agame.com",
-    "silvergames.com", "armorgames.com", "newgrounds.com", "itch.io",
-    "4399.com", "frivgames.com", "kizi.com",
-    NULL
-};
+#define MAX_EXT_LISTS 32
 
 typedef struct {
-    const char  *name;
-    int          flag;
-    const char **domains;
-} PresetCat;
+    char  name[64];
+    char **sorted;   /* sorted array of heap-allocated domain strings */
+    int    count;
+} ExtList;
 
-static const PresetCat PRESET_CATS[] = {
-    { "Gambling sites",           PRESET_GAMBLING, PRESET_GAMBLING_DOMAINS },
-    { "Adult content / OnlyFans", PRESET_ADULT,    PRESET_ADULT_DOMAINS    },
-    { "Social media",             PRESET_SOCIAL,   PRESET_SOCIAL_DOMAINS   },
-    { "Online games",             PRESET_GAMING,   PRESET_GAMING_DOMAINS   },
-};
+static ExtList g_ext[MAX_EXT_LISTS];
+static int     g_ext_count = 0;
 
-#define N_PRESET_CATS 4
+static char *el_strdup(const char *s) {
+    size_t n = strlen(s) + 1;
+    char *p = (char *)malloc(n);
+    if (p) memcpy(p, s, n);
+    return p;
+}
 
-static int count_domains(const char **arr) {
-    int n = 0; while (arr[n]) n++; return n;
+static int el_cmp(const void *a, const void *b) {
+    return strcmp(*(const char **)a, *(const char **)b);
+}
+
+static void extlist_free(ExtList *el) {
+    for (int i = 0; i < el->count; i++) free(el->sorted[i]);
+    free(el->sorted);
+    el->sorted = NULL;
+    el->count  = 0;
+}
+
+static int extlist_load_file(ExtList *el, const char *path) {
+    extlist_free(el);
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+
+    int cap = 4096;
+    el->sorted = (char **)malloc((size_t)cap * sizeof(char *));
+    if (!el->sorted) { fclose(f); return 0; }
+
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
+        /* format: "0.0.0.0 domain.com" */
+        char *sp = strchr(line, ' ');
+        if (!sp) continue;
+        sp++;
+        /* trim trailing whitespace */
+        char *end = sp + strlen(sp);
+        while (end > sp && (*(end-1)=='\r'||*(end-1)=='\n'||*(end-1)==' ')) end--;
+        *end = '\0';
+        if (!*sp || *sp == '#') continue;
+
+        if (el->count >= cap) {
+            cap *= 2;
+            char **tmp = (char **)realloc(el->sorted, (size_t)cap * sizeof(char *));
+            if (!tmp) break;
+            el->sorted = tmp;
+        }
+        char *d = el_strdup(sp);
+        if (d) el->sorted[el->count++] = d;
+    }
+    fclose(f);
+
+    if (el->count > 0)
+        qsort(el->sorted, (size_t)el->count, sizeof(char *), el_cmp);
+    return el->count > 0;
+}
+
+/* Check if host (or any parent domain) is in one ext list. Caller holds lock. */
+static int extlist_hit(const ExtList *el, const char *host) {
+    if (!el->count) return 0;
+    const char *key = host;
+    if (bsearch(&key, el->sorted, (size_t)el->count, sizeof(char *), el_cmp)) return 1;
+    /* try parent domains: studio.code.org -> code.org */
+    const char *p = host;
+    while ((p = strchr(p, '.')) != NULL) {
+        p++;
+        if (!strchr(p, '.')) break; /* skip bare TLD */
+        key = p;
+        if (bsearch(&key, el->sorted, (size_t)el->count, sizeof(char *), el_cmp)) return 1;
+    }
+    return 0;
+}
+
+/* Returns 1 if host is blocked by any enabled ext list. Caller holds g_cfg_lock. */
+static int extlists_blocked(const char *host) {
+    for (int i = 0; i < g_ext_count; i++)
+        if (extlist_hit(&g_ext[i], host)) return 1;
+    return 0;
+}
+
+/* Parse enabled_lists string and load the matching .txt files.
+   Call WITHOUT holding g_cfg_lock (file I/O can be slow). */
+static void extlists_load_all(void) {
+    /* Snapshot the names list while holding lock */
+    char names[512];
+    EnterCriticalSection(&g_cfg_lock);
+    strncpy(names, g_cfg.enabled_lists, sizeof(names) - 1);
+    names[sizeof(names) - 1] = '\0';
+    LeaveCriticalSection(&g_cfg_lock);
+
+    /* Load new ext lists WITHOUT the lock */
+    ExtList new_ext[MAX_EXT_LISTS];
+    int     new_count = 0;
+    memset(new_ext, 0, sizeof(new_ext));
+
+    char *tok = strtok(names, " ");
+    while (tok && new_count < MAX_EXT_LISTS) {
+        char path[MAX_PATH];
+        snprintf(path, MAX_PATH, "%s\\%s.txt", g_lists_dir, tok);
+        if (extlist_load_file(&new_ext[new_count], path)) {
+            strncpy(new_ext[new_count].name, tok, 63);
+            new_count++;
+        }
+        tok = strtok(NULL, " ");
+    }
+
+    /* Swap atomically under lock */
+    EnterCriticalSection(&g_cfg_lock);
+    for (int i = 0; i < g_ext_count; i++) extlist_free(&g_ext[i]);
+    memcpy(g_ext, new_ext, (size_t)new_count * sizeof(ExtList));
+    g_ext_count = new_count;
+    LeaveCriticalSection(&g_cfg_lock);
 }
 
 /* -------------------------------------------------------------------------
-   Preset dialog — checkbox list of categories
+   Block Presets dialog — dynamically lists .txt files from lists\ folder
    ---------------------------------------------------------------------- */
 
-#define ID_CHK_BASE 300   /* 300..303 for the 4 checkboxes */
+#define ID_LV_LISTS 300
 
 static BOOL g_preset_done;
 
+/* Read Title and Entries count from the comment header of a list file. */
+static void read_list_header(const char *path, char *title, int title_len, int *entries) {
+    *entries = -1;
+    title[0] = '\0';
+    FILE *f = fopen(path, "r");
+    if (!f) return;
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        if (line[0] != '#') break;
+        if (strncmp(line, "# Title:", 8) == 0) {
+            const char *s = line + 8;
+            while (*s == ' ') s++;
+            strncpy(title, s, title_len - 1);
+            title[title_len - 1] = '\0';
+            char *nl = strchr(title, '\n'); if (nl) *nl = '\0';
+            char *cr = strchr(title, '\r'); if (cr) *cr = '\0';
+        }
+        if (strncmp(line, "# Entries:", 10) == 0) {
+            /* "2,500" → strip commas */
+            const char *s = line + 10;
+            int v = 0;
+            while (*s) {
+                if (*s >= '0' && *s <= '9') v = v * 10 + (*s - '0');
+                else if (*s == '\n' || *s == '\r') break;
+                s++;
+            }
+            *entries = v;
+        }
+        if (title[0] && *entries >= 0) break;
+    }
+    fclose(f);
+}
+
+/* Returns 1 if name is in g_acfg.enabled_lists (space-separated). */
+static int list_is_enabled(const char *name) {
+    const char *p = g_acfg.enabled_lists;
+    size_t nlen = strlen(name);
+    while (*p) {
+        while (*p == ' ') p++;
+        if (strncmp(p, name, nlen) == 0 && (p[nlen] == ' ' || p[nlen] == '\0'))
+            return 1;
+        while (*p && *p != ' ') p++;
+    }
+    return 0;
+}
+
 static LRESULT CALLBACK PresetProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    static HWND lv;
     switch (msg) {
         case WM_CREATE: {
             HINSTANCE hi = ((CREATESTRUCTA *)lp)->hInstance;
-            int y = 10;
             CreateWindowA("STATIC",
-                "Tick a category to add its domains to your list.",
-                WS_CHILD|WS_VISIBLE, 10, y, 390, 16, hwnd, NULL, hi, NULL);
-            y += 20;
+                "Select lists from your lists\\ folder to use for blocking.",
+                WS_CHILD|WS_VISIBLE, 10, 8, 460, 16, hwnd, NULL, hi, NULL);
             CreateWindowA("STATIC",
-                g_acfg.blacklist_mode
-                    ? "Blacklist mode: checked categories will be blocked."
-                    : "Whitelist mode: checked categories will be allowed (not blocked).",
-                WS_CHILD|WS_VISIBLE, 10, y, 390, 16, hwnd, NULL, hi, NULL);
-            y += 30;
-            for (int i = 0; i < N_PRESET_CATS; i++) {
-                char label[128];
-                sprintf(label, "%s  (%d domains)",
-                        PRESET_CATS[i].name,
-                        count_domains(PRESET_CATS[i].domains));
-                HWND chk = CreateWindowA("BUTTON", label,
-                    WS_CHILD|WS_VISIBLE|BS_AUTOCHECKBOX,
-                    10, y, 390, 22, hwnd, (HMENU)(UINT_PTR)(ID_CHK_BASE + i), hi, NULL);
-                SendMessage(chk, BM_SETCHECK,
-                    (g_acfg.preset_flags & PRESET_CATS[i].flag) ? BST_CHECKED : BST_UNCHECKED, 0);
-                y += 30;
+                "Only active in Blacklist mode. Large lists load when the service starts.",
+                WS_CHILD|WS_VISIBLE, 10, 26, 460, 16, hwnd, NULL, hi, NULL);
+
+            lv = CreateWindowExA(WS_EX_CLIENTEDGE, WC_LISTVIEWA, "",
+                WS_CHILD|WS_VISIBLE|LVS_REPORT|LVS_SHOWSELALWAYS,
+                10, 50, 460, 310, hwnd, (HMENU)ID_LV_LISTS, hi, NULL);
+            ListView_SetExtendedListViewStyle(lv,
+                LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
+
+            LVCOLUMNA c1 = {0};
+            c1.mask=LVCF_TEXT|LVCF_WIDTH; c1.cx=240; c1.pszText="Category";
+            ListView_InsertColumn(lv, 0, &c1);
+            LVCOLUMNA c2 = {0};
+            c2.mask=LVCF_TEXT|LVCF_WIDTH; c2.cx=105; c2.pszText="Domains";
+            ListView_InsertColumn(lv, 1, &c2);
+            LVCOLUMNA c3 = {0};
+            c3.mask=LVCF_TEXT|LVCF_WIDTH; c3.cx=100; c3.pszText="File";
+            ListView_InsertColumn(lv, 2, &c3);
+
+            /* Enumerate *.txt files in lists\ folder */
+            char search[MAX_PATH];
+            snprintf(search, MAX_PATH, "%s\\*.txt", g_lists_dir);
+            WIN32_FIND_DATAA ffd;
+            HANDLE h = FindFirstFileA(search, &ffd);
+            if (h != INVALID_HANDLE_VALUE) {
+                int row = 0;
+                do {
+                    char filepath[MAX_PATH];
+                    snprintf(filepath, MAX_PATH, "%s\\%s", g_lists_dir, ffd.cFileName);
+
+                    char title[128]; int entries;
+                    read_list_header(filepath, title, sizeof(title), &entries);
+                    if (!title[0]) {
+                        strncpy(title, ffd.cFileName, sizeof(title)-1);
+                        char *dot = strrchr(title, '.'); if (dot) *dot = '\0';
+                    }
+
+                    LVITEMA it = {0};
+                    it.mask    = LVIF_TEXT;
+                    it.iItem   = row;
+                    it.pszText = title;
+                    ListView_InsertItem(lv, &it);
+
+                    char cnt_buf[32];
+                    if (entries >= 0) {
+                        int e = entries;
+                        if (e >= 1000000)
+                            sprintf(cnt_buf, "%d.%dM", e/1000000, (e%1000000)/100000);
+                        else if (e >= 1000)
+                            sprintf(cnt_buf, "%d,%03d", e/1000, e%1000);
+                        else
+                            sprintf(cnt_buf, "%d", e);
+                    } else {
+                        strcpy(cnt_buf, "?");
+                    }
+                    ListView_SetItemText(lv, row, 1, cnt_buf);
+                    ListView_SetItemText(lv, row, 2, ffd.cFileName);
+
+                    /* Strip .txt for enabled_lists matching */
+                    char name[64];
+                    strncpy(name, ffd.cFileName, sizeof(name)-1);
+                    char *dot = strrchr(name, '.'); if (dot) *dot = '\0';
+                    if (list_is_enabled(name))
+                        ListView_SetCheckState(lv, row, TRUE);
+
+                    row++;
+                } while (FindNextFileA(h, &ffd));
+                FindClose(h);
             }
-            y += 6;
-            CreateWindowA("STATIC",
-                "Tip: use with Blacklist mode to allow all sites except selected categories.",
-                WS_CHILD|WS_VISIBLE, 10, y, 390, 16, hwnd, NULL, hi, NULL);
-            y += 30;
+
+            if (ListView_GetItemCount(lv) == 0) {
+                CreateWindowA("STATIC",
+                    "No .txt files found in lists\\ folder.\r\n"
+                    "Place list files next to csec.exe in a lists\\ subfolder.",
+                    WS_CHILD|WS_VISIBLE, 10, 170, 460, 40, hwnd, NULL, hi, NULL);
+            }
+
             CreateWindowA("BUTTON", "OK", WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON,
-                100, y, 80, 28, hwnd, (HMENU)IDOK, hi, NULL);
+                170, 372, 80, 28, hwnd, (HMENU)IDOK, hi, NULL);
             CreateWindowA("BUTTON", "Cancel", WS_CHILD|WS_VISIBLE,
-                210, y, 80, 28, hwnd, (HMENU)IDCANCEL, hi, NULL);
+                270, 372, 80, 28, hwnd, (HMENU)IDCANCEL, hi, NULL);
             return 0;
         }
         case WM_COMMAND:
             if (LOWORD(wp) == IDOK && HIWORD(wp) == BN_CLICKED) {
-                for (int i = 0; i < N_PRESET_CATS; i++) {
-                    HWND chk = GetDlgItem(hwnd, ID_CHK_BASE + i);
-                    int now = (SendMessage(chk, BM_GETCHECK, 0, 0) == BST_CHECKED);
-                    int was = (g_acfg.preset_flags & PRESET_CATS[i].flag) ? 1 : 0;
-                    if (now && !was) {
-                        for (int j = 0; PRESET_CATS[i].domains[j]; j++)
-                            domain_add(&g_acfg, PRESET_CATS[i].domains[j]);
-                        g_acfg.preset_flags |= PRESET_CATS[i].flag;
-                    } else if (!now && was) {
-                        for (int j = 0; PRESET_CATS[i].domains[j]; j++)
-                            domain_remove(&g_acfg, PRESET_CATS[i].domains[j]);
-                        g_acfg.preset_flags &= ~PRESET_CATS[i].flag;
-                    }
+                /* Build new enabled_lists string from checked rows */
+                char new_lists[512] = {0};
+                int count = ListView_GetItemCount(lv);
+                for (int i = 0; i < count; i++) {
+                    if (!ListView_GetCheckState(lv, i)) continue;
+                    char file[64];
+                    ListView_GetItemText(lv, i, 2, file, sizeof(file));
+                    char *dot = strrchr(file, '.'); if (dot) *dot = '\0';
+                    if (new_lists[0]) strncat(new_lists, " ", sizeof(new_lists)-strlen(new_lists)-1);
+                    strncat(new_lists, file, sizeof(new_lists)-strlen(new_lists)-1);
                 }
+                strncpy(g_acfg.enabled_lists, new_lists, sizeof(g_acfg.enabled_lists)-1);
                 config_save(&g_acfg, g_config_path);
                 notify_service();
-                lv_refresh();
                 DestroyWindow(hwnd);
             } else if (LOWORD(wp) == IDCANCEL && HIWORD(wp) == BN_CLICKED) {
                 DestroyWindow(hwnd);
@@ -725,12 +889,12 @@ static void do_presets(void) {
 
     g_preset_done = FALSE;
     RECT r; GetWindowRect(g_hwnd, &r);
-    int pw = 430, ph = 262;
+    int pw = 500, ph = 450;
     int px = r.left + (r.right  - r.left - pw) / 2;
     int py = r.top  + (r.bottom - r.top  - ph) / 2;
 
-    HWND dlg = CreateWindowA("CSec_Presets", "Block Presets",
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+    HWND dlg = CreateWindowA("CSec_Presets", "Block Lists",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
         px, py, pw, ph, g_hwnd, NULL, hi, NULL);
     ShowWindow(dlg, SW_SHOW);
 

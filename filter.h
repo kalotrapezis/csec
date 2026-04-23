@@ -9,8 +9,9 @@ typedef struct {
     char domains[MAX_DOMAINS][MAX_DOMAIN_LEN];
     int  count;
     char admin_hash[65]; /* SHA-256 hex, null-terminated */
-    int  blacklist_mode; /* 0 = whitelist (default), 1 = blacklist */
-    int  preset_flags;   /* bitmask of active preset categories */
+    int  blacklist_mode;       /* 0 = whitelist (default), 1 = blacklist */
+    int  preset_flags;         /* reserved — kept for config compatibility */
+    char enabled_lists[512];   /* space-separated .txt list names, e.g. "gambling porn" */
 } CSec_Config;
 
 /* Load config from path. Returns 1 on success, 0 on failure (missing file = empty config). */

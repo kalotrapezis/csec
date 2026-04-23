@@ -112,6 +112,9 @@ static int config_parse(CSec_Config *cfg, const char *json) {
             int val = 0;
             while (isdigit((unsigned char)*p)) { val = val * 10 + (*p - '0'); p++; }
             cfg->preset_flags = val;
+        } else if (strcmp(key, "enabled_lists") == 0) {
+            p = parse_string(p, cfg->enabled_lists, sizeof(cfg->enabled_lists));
+            if (!p) return 0;
         } else {
             /* Unknown key — skip value (strings and arrays only in our format) */
             if (*p == '"') {
@@ -175,7 +178,8 @@ int config_save(const CSec_Config *cfg, const char *path) {
     fprintf(f, "],\n");
     fprintf(f, "  \"admin_hash\": \"%s\",\n", cfg->admin_hash);
     fprintf(f, "  \"mode\": \"%s\",\n", cfg->blacklist_mode ? "blacklist" : "whitelist");
-    fprintf(f, "  \"presets\": %d\n}\n", cfg->preset_flags);
+    fprintf(f, "  \"presets\": %d,\n", cfg->preset_flags);
+    fprintf(f, "  \"enabled_lists\": \"%s\"\n}\n", cfg->enabled_lists);
 
     fclose(f);
     return 1;
