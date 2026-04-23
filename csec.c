@@ -28,7 +28,7 @@
 #define STR(x)  STR_(x)
 
 #define SERVICE_NAME "CSec"
-#define VERSION      "0.0.2 Alpha"
+#define VERSION      "0.0.3 Alpha"
 #define PROXY_PORT   8080
 
 static char g_config_path[MAX_PATH];
