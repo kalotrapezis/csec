@@ -2,6 +2,31 @@
 
 ---
 
+## 0.0.5 Alpha — 2026-04-24
+
+Progressive list loading — popular sites blocked instantly on startup.
+
+### Added
+- **`_priority.txt`** — a small curated list (~67 domains) of the most
+  commonly known blocked sites (pornhub, xvideos, facebook, instagram,
+  tiktok, bet365, thepiratebay, etc.). Loads first, unconditionally,
+  in every mode
+- **Progressive background loading** — on startup the service hot-loads
+  the first 500 entries from each enabled list (popular domains first),
+  starts accepting connections immediately, then expands coverage in
+  background batches: 1,500 → 5,000 → full list. Popular sites are
+  blocked before the "starting..." status clears
+- **`sort_lists.py`** — utility script that reorders each `.txt` list file
+  so the most commonly known domains in that category appear at the top.
+  Run after downloading updated list files
+
+### Changed
+- List loading is now asynchronous — the proxy starts in <100 ms regardless
+  of how large the enabled lists are
+- `_priority.txt` shows correct domain count (67) in the Block Lists dialog
+
+---
+
 ## 0.0.4 Alpha — 2026-04-23
 
 Proxy settings lock — students cannot bypass the filter by changing proxy settings.

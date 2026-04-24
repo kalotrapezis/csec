@@ -11,9 +11,13 @@
 # https://github.com/blocklistproject/Lists
 #
 
+0.0.0.0 thepiratebay.org
+0.0.0.0 1337x.to
+0.0.0.0 kickasstorrents.to
+0.0.0.0 torrentz2.eu
+0.0.0.0 yts.mx
 0.0.0.0 0daycn.net
 0.0.0.0 100-postal2.blogspot.com
-0.0.0.0 1337x.to
 0.0.0.0 160kbps.4files.net
 0.0.0.0 1clickdown.com
 0.0.0.0 22jumpstreetonlinenow.comunidades.net
@@ -468,7 +472,6 @@
 0.0.0.0 kickass.so
 0.0.0.0 kickass.to
 0.0.0.0 kickassto.co
-0.0.0.0 kickasstorrents.to
 0.0.0.0 kinguin.net
 0.0.0.0 kino-hit.com
 0.0.0.0 kinofilms.su
@@ -971,7 +974,6 @@
 0.0.0.0 thepiratebay.fm
 0.0.0.0 thepiratebay.gd
 0.0.0.0 thepiratebay.ms
-0.0.0.0 thepiratebay.org
 0.0.0.0 thepiratebay.se
 0.0.0.0 thepiratebay.vg
 0.0.0.0 thesilencemusic.com
@@ -994,7 +996,6 @@
 0.0.0.0 tormov.com
 0.0.0.0 torrentgalaxy.to
 0.0.0.0 torrents-game.net
-0.0.0.0 torrentz2.eu
 0.0.0.0 torrpeda.org
 0.0.0.0 tracker.0day.kiev.ua
 0.0.0.0 trening-kurs.ru
@@ -2142,7 +2143,6 @@
 0.0.0.0 youwatch.org
 0.0.0.0 yts.ag
 0.0.0.0 yts.la
-0.0.0.0 yts.mx
 0.0.0.0 yts.re
 0.0.0.0 zcrack.com
 0.0.0.0 zdig1.biz

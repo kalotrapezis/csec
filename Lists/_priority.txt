@@ -1,0 +1,86 @@
+# Title: Priority Block List
+# Description: Most commonly known blocked sites — loaded first on every startup
+# Entries: 67
+# Put the sites students actually know and try here. This file loads in full
+# before any category list, regardless of which categories are enabled.
+# Add or remove entries freely. Format: 0.0.0.0 domain.com
+#
+
+# --- Adult content ---
+0.0.0.0 pornhub.com
+0.0.0.0 xvideos.com
+0.0.0.0 xhamster.com
+0.0.0.0 xnxx.com
+0.0.0.0 redtube.com
+0.0.0.0 youporn.com
+0.0.0.0 tube8.com
+0.0.0.0 spankbang.com
+0.0.0.0 beeg.com
+0.0.0.0 xfantazy.com
+0.0.0.0 eporner.com
+0.0.0.0 xmoviesforyou.com
+0.0.0.0 porntrex.com
+0.0.0.0 sex.com
+0.0.0.0 brazzers.com
+0.0.0.0 naughtyamerica.com
+0.0.0.0 xtube.com
+0.0.0.0 yuvutu.com
+0.0.0.0 hclips.com
+0.0.0.0 hentaigasm.com
+0.0.0.0 rule34.xxx
+0.0.0.0 e-hentai.org
+0.0.0.0 nhentai.net
+0.0.0.0 gelbooru.com
+0.0.0.0 danbooru.donmai.us
+
+# --- Social media (commonly restricted in class) ---
+0.0.0.0 tiktok.com
+0.0.0.0 tiktokv.com
+0.0.0.0 facebook.com
+0.0.0.0 instagram.com
+0.0.0.0 twitter.com
+0.0.0.0 x.com
+0.0.0.0 snapchat.com
+0.0.0.0 reddit.com
+
+# --- Gambling ---
+0.0.0.0 bet365.com
+0.0.0.0 pokerstars.com
+0.0.0.0 williamhill.com
+0.0.0.0 betway.com
+0.0.0.0 888casino.com
+0.0.0.0 casumo.com
+0.0.0.0 unibet.com
+0.0.0.0 bwin.com
+0.0.0.0 stoiximan.gr
+0.0.0.0 betshop.gr
+0.0.0.0 novibet.gr
+0.0.0.0 interwetten.gr
+
+# --- Gaming / distractions (optional — remove if you allow gaming) ---
+0.0.0.0 miniclip.com
+0.0.0.0 friv.com
+0.0.0.0 y8.com
+0.0.0.0 coolmathgames.com
+0.0.0.0 poki.com
+0.0.0.0 agame.com
+0.0.0.0 kizi.com
+0.0.0.0 addictinggames.com
+
+# --- Piracy / torrents ---
+0.0.0.0 thepiratebay.org
+0.0.0.0 1337x.to
+0.0.0.0 rarbg.to
+0.0.0.0 kickasstorrents.to
+0.0.0.0 torrentz2.eu
+0.0.0.0 yts.mx
+
+# --- Proxy / bypass tools ---
+0.0.0.0 hidemyass.com
+0.0.0.0 proxysite.com
+0.0.0.0 kproxy.com
+0.0.0.0 hide.me
+0.0.0.0 whoer.net
+0.0.0.0 ultrasurf.us
+0.0.0.0 vpnbook.com
+0.0.0.0 hotspotshield.com

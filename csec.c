@@ -28,7 +28,7 @@
 #define STR(x)  STR_(x)
 
 #define SERVICE_NAME "CSec"
-#define VERSION      "0.0.4 Alpha"
+#define VERSION      "0.0.5 Alpha"
 #define PROXY_PORT   8080
 
 static char g_config_path[MAX_PATH];
@@ -168,8 +168,10 @@ static CRITICAL_SECTION g_cfg_lock;
 static volatile int g_running = 1;
 
 /* forward declarations — defined later in the admin GUI section */
-static int  extlists_blocked(const char *host);
-static void extlists_load_all(void);
+static int   extlists_blocked(const char *host);
+static void  extlists_load_all(void);
+static void  extlists_load_hot(void);
+static DWORD WINAPI bg_load_thread(LPVOID arg);
 
 typedef struct { SOCKET from; SOCKET to; } TunnelArgs;
 
@@ -281,7 +283,10 @@ static void cfg_reload(void) {
         EnterCriticalSection(&g_cfg_lock);
         memcpy(&g_cfg, &tmp, sizeof(g_cfg));
         LeaveCriticalSection(&g_cfg_lock);
-        extlists_load_all(); /* reload block list files (may be slow for large lists) */
+        /* Hot pass: blocks popular sites in <100ms while full lists load in background */
+        extlists_load_hot();
+        HANDLE t = CreateThread(NULL, 0, bg_load_thread, NULL, 0, NULL);
+        if (t) CloseHandle(t);
     }
 }
 
@@ -672,7 +677,8 @@ static void extlist_free(ExtList *el) {
     el->count  = 0;
 }
 
-static int extlist_load_file(ExtList *el, const char *path) {
+/* max_lines: stop after this many domain entries (0 = load all) */
+static int extlist_load_file(ExtList *el, const char *path, int max_lines) {
     extlist_free(el);
     FILE *f = fopen(path, "r");
     if (!f) return 0;
@@ -683,6 +689,7 @@ static int extlist_load_file(ExtList *el, const char *path) {
 
     char line[512];
     while (fgets(line, sizeof(line), f)) {
+        if (max_lines > 0 && el->count >= max_lines) break;
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
         /* format: "0.0.0.0 domain.com" */
         char *sp = strchr(line, ' ');
@@ -733,9 +740,15 @@ static int extlists_blocked(const char *host) {
     return 0;
 }
 
-/* Parse enabled_lists string and load the matching .txt files.
+/* HOT_LINES: domains loaded per file in the fast first pass.
+   These must be at the TOP of each list file — put popular sites there. */
+#define HOT_LINES 500
+
+/* Load enabled list files. max_lines=0 loads everything; max_lines=HOT_LINES
+   is the fast first pass. _priority.txt (if present) is always loaded in full
+   as the first slot — put the most commonly-known sites there.
    Call WITHOUT holding g_cfg_lock (file I/O can be slow). */
-static void extlists_load_all(void) {
+static void extlists_load_impl(int max_lines) {
     /* Snapshot the names list while holding lock */
     char names[512];
     EnterCriticalSection(&g_cfg_lock);
@@ -743,20 +756,41 @@ static void extlists_load_all(void) {
     names[sizeof(names) - 1] = '\0';
     LeaveCriticalSection(&g_cfg_lock);
 
-    /* Load new ext lists WITHOUT the lock */
     ExtList new_ext[MAX_EXT_LISTS];
     int     new_count = 0;
     memset(new_ext, 0, sizeof(new_ext));
 
-    char *tok = strtok(names, " ");
-    while (tok && new_count < MAX_EXT_LISTS) {
+    /* Always load _priority.txt first (small curated list, no line limit) */
+    if (new_count < MAX_EXT_LISTS) {
+        char ppath[MAX_PATH];
+        snprintf(ppath, MAX_PATH, "%s\\_priority.txt", g_lists_dir);
+        if (extlist_load_file(&new_ext[new_count], ppath, 0)) {
+            strncpy(new_ext[new_count].name, "_priority", 63);
+            new_count++;
+        }
+    }
+
+    /* Walk space-separated enabled_lists without strtok (not thread-safe) */
+    const char *p = names;
+    while (*p && new_count < MAX_EXT_LISTS) {
+        while (*p == ' ') p++;
+        if (!*p) break;
+        const char *start = p;
+        while (*p && *p != ' ') p++;
+        int len = (int)(p - start);
+        if (len == 0) continue;
+
+        char tok[64];
+        if (len >= (int)sizeof(tok)) len = (int)sizeof(tok) - 1;
+        memcpy(tok, start, (size_t)len);
+        tok[len] = '\0';
+
         char path[MAX_PATH];
         snprintf(path, MAX_PATH, "%s\\%s.txt", g_lists_dir, tok);
-        if (extlist_load_file(&new_ext[new_count], path)) {
+        if (extlist_load_file(&new_ext[new_count], path, max_lines)) {
             strncpy(new_ext[new_count].name, tok, 63);
             new_count++;
         }
-        tok = strtok(NULL, " ");
     }
 
     /* Swap atomically under lock */
@@ -765,6 +799,21 @@ static void extlists_load_all(void) {
     memcpy(g_ext, new_ext, (size_t)new_count * sizeof(ExtList));
     g_ext_count = new_count;
     LeaveCriticalSection(&g_cfg_lock);
+}
+
+static void extlists_load_all(void)  { extlists_load_impl(0);         }
+static void extlists_load_hot(void)  { extlists_load_impl(HOT_LINES); }
+
+static DWORD WINAPI bg_load_thread(LPVOID arg) {
+    (void)arg;
+    /* Progressive batches — files must be sorted by popularity (run sort_lists.py).
+       Each step expands coverage; pauses keep the HDD from being hammered. */
+    static const int steps[] = {1500, 5000, 0}; /* 0 = full (no limit) */
+    for (int i = 0; i < (int)(sizeof(steps)/sizeof(steps[0])); i++) {
+        Sleep(5000);
+        extlists_load_impl(steps[i]);
+    }
+    return 0;
 }
 
 /* -------------------------------------------------------------------------

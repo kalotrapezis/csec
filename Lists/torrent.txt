@@ -11,6 +11,13 @@
 # https://github.com/blocklistproject/Lists
 #
 
+0.0.0.0 thepiratebay.org
+0.0.0.0 1337x.to
+0.0.0.0 rarbg.to
+0.0.0.0 yts.mx
+0.0.0.0 torrentz2.eu
+0.0.0.0 nyaa.si
+0.0.0.0 limetorrents.info
 0.0.0.0 0.arenabg.com
 0.0.0.0 00-torrnets.com
 0.0.0.0 0day.ro
@@ -19,7 +26,6 @@
 0.0.0.0 123bits.org
 0.0.0.0 1337.abcvg.info
 0.0.0.0 1337x.org
-0.0.0.0 1337x.to
 0.0.0.0 1337x.unblocked.llc
 0.0.0.0 1bt.ru
 0.0.0.0 1nd.hu
@@ -994,7 +1000,6 @@
 0.0.0.0 libitina.net
 0.0.0.0 lickmytaint.com
 0.0.0.0 lien-torrent.com
-0.0.0.0 limetorrents.info
 0.0.0.0 limetorrents.unblocked.llc
 0.0.0.0 linkomanija.net
 0.0.0.0 linkseed.net
@@ -1193,7 +1198,6 @@
 0.0.0.0 nw0.info
 0.0.0.0 nxtgn.org
 0.0.0.0 nyaa.eu
-0.0.0.0 nyaa.si
 0.0.0.0 nyaa.tracker.wf
 0.0.0.0 nzb-chat.com
 0.0.0.0 nzbsrus.com
@@ -1373,7 +1377,6 @@
 0.0.0.0 rapidtreggy.com
 0.0.0.0 rarbg.com
 0.0.0.0 rarbg.me
-0.0.0.0 rarbg.to
 0.0.0.0 rarbg.unblocked.llc
 0.0.0.0 raspberryheaven.net
 0.0.0.0 raulken.it
@@ -1662,7 +1665,6 @@
 0.0.0.0 theoccult.bz
 0.0.0.0 thepeerhub.com
 0.0.0.0 thepiratebay.cx
-0.0.0.0 thepiratebay.org
 0.0.0.0 theplace.bz
 0.0.0.0 thepokerbay.org
 0.0.0.0 thescene.ro
@@ -1867,7 +1869,6 @@
 0.0.0.0 torrentz.com
 0.0.0.0 torrentz.eu
 0.0.0.0 torrentz.nu
-0.0.0.0 torrentz2.eu
 0.0.0.0 torrentzilla.org
 0.0.0.0 torrentzone.net
 0.0.0.0 total-bytes.com
@@ -2613,7 +2614,6 @@
 0.0.0.0 youtor.org.uk
 0.0.0.0 youtorrent.com
 0.0.0.0 yts.lt
-0.0.0.0 yts.mx
 0.0.0.0 yts.unblocked.llc
 0.0.0.0 yu-anime.net
 0.0.0.0 yubraca.net

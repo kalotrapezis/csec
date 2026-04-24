@@ -11,6 +11,10 @@
 # https://github.com/blocklistproject/Lists
 #
 
+0.0.0.0 tiktok.com
+0.0.0.0 tiktokv.com
+0.0.0.0 tiktokcdn.com
+0.0.0.0 musical.ly
 0.0.0.0 0pbxmo-useast2a.xzcs3zlph.com
 0.0.0.0 0pbxmo-useast2a.xzcs3zlph.com.edgesuite.net
 0.0.0.0 0pbxmo.xzcs3zlph.com
@@ -1587,7 +1591,6 @@
 0.0.0.0 musereview.byteoversea.com
 0.0.0.0 music.muscdn.com
 0.0.0.0 music.musical.ly
-0.0.0.0 musical.ly
 0.0.0.0 musical.ly.akadns.net
 0.0.0.0 musical.ly.edgekey.net
 0.0.0.0 musical.ly.edgesuite.net
@@ -2699,12 +2702,10 @@
 0.0.0.0 tiktok-lb-alisg.byteoversea.net
 0.0.0.0 tiktok-lb-maliva.byteoversea.net
 0.0.0.0 tiktok.cdnvideo.ru
-0.0.0.0 tiktok.com
 0.0.0.0 tiktok.com.c.footprint.net
 0.0.0.0 tiktok.com.c.secure.footprint.net
 0.0.0.0 tiktok.com.edgekey.net
 0.0.0.0 tiktok.com.edgesuite.net
-0.0.0.0 tiktokcdn.com
 0.0.0.0 tiktokcdn.com.akamaized.net
 0.0.0.0 tiktokcdn.com.baishan-cloud.net
 0.0.0.0 tiktokcdn.com.bytewlb.akadns.net
@@ -2713,7 +2714,6 @@
 0.0.0.0 tiktokcdn.com.w.kunlunsl.com
 0.0.0.0 tiktokcdn.com.wsdvs.com
 0.0.0.0 tiktokcdn.liveplay.myqcloud.com
-0.0.0.0 tiktokv.com
 0.0.0.0 tiktokv.com.cdn.cloudflare.net
 0.0.0.0 tiktokv.com.edgekey.net
 0.0.0.0 tiktokv.com.edgesuite.net

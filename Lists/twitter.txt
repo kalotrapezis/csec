@@ -11,6 +11,9 @@
 # https://github.com/blocklistproject/Lists
 #
 
+0.0.0.0 twitter.com
+0.0.0.0 x.com
+0.0.0.0 api.twitter.com
 0.0.0.0 0.twitter.com
 0.0.0.0 2010.twitter.com
 0.0.0.0 2011.twitter.com
@@ -170,7 +173,6 @@
 0.0.0.0 api-settings.twitter.com
 0.0.0.0 api-stream.twitter.com
 0.0.0.0 api-test.twitter.com
-0.0.0.0 api.twitter.com
 0.0.0.0 api1-backup.twitter.com
 0.0.0.0 api2.twitter.com
 0.0.0.0 api3-backup.twitter.com
@@ -1074,7 +1076,6 @@
 0.0.0.0 twitter-www.twitter.com
 0.0.0.0 twitter.ae
 0.0.0.0 twitter.bldna48.com
-0.0.0.0 twitter.com
 0.0.0.0 twitter.com.1.1.abcd.roksit.net
 0.0.0.0 twitter.com.3.1.adiosfil.roksit.net
 0.0.0.0 twitter.com.7.1.adiosnof.roksit.net
@@ -1194,7 +1195,6 @@
 0.0.0.0 www3-backup.twitter.com
 0.0.0.0 www4.twitter.com
 0.0.0.0 wwwww.twitter.com
-0.0.0.0 x.com
 0.0.0.0 xbox.twitter.com
 0.0.0.0 xstream.twitter.com
 0.0.0.0 yearinreview.twitter.com

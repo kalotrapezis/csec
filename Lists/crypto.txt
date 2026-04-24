@@ -11,6 +11,10 @@
 # https://github.com/blocklistproject/Lists
 #
 
+0.0.0.0 binance.com
+0.0.0.0 coinbase.com
+0.0.0.0 crypto.com
+0.0.0.0 bitcoin.com
 0.0.0.0 0.r.msn.com
 0.0.0.0 000.0x1f4b0.com
 0.0.0.0 001.0x1f4b0.com
@@ -1859,7 +1863,6 @@
 0.0.0.0 binance.auction
 0.0.0.0 binance.center
 0.0.0.0 binance.click
-0.0.0.0 binance.com
 0.0.0.0 binance.direct
 0.0.0.0 binance.enterprises
 0.0.0.0 binance.express
@@ -1920,7 +1923,6 @@
 0.0.0.0 bitcoin.bluematt.me
 0.0.0.0 bitcoin.co.pt
 0.0.0.0 bitcoin.coin-miners.info
-0.0.0.0 bitcoin.com
 0.0.0.0 bitcoin.cz
 0.0.0.0 bitcoin.dashjr.org
 0.0.0.0 bitcoin.de
@@ -3165,7 +3167,6 @@
 0.0.0.0 coin3.pool.sexy
 0.0.0.0 coinad.com
 0.0.0.0 coinadnet.com
-0.0.0.0 coinbase.com
 0.0.0.0 coinbin.org
 0.0.0.0 coinblind.com
 0.0.0.0 coinblockers.com
@@ -3499,7 +3500,6 @@
 0.0.0.0 crypto-loot05.coinfaucet.eu
 0.0.0.0 crypto-pool.fr
 0.0.0.0 crypto-webminer.com
-0.0.0.0 crypto.com
 0.0.0.0 crypto.csgocpu.com
 0.0.0.0 crypto.gobabytrade.com
 0.0.0.0 crypto.n-engine.com

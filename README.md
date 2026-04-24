@@ -12,7 +12,7 @@ Blocks all websites except the ones you allow, or allows everything except
 the sites you block. Runs as a Windows Service. Survives reboot.
 No internet connection required.
 
-**Version:** 0.0.4 Alpha
+**Version:** 0.0.5 Alpha
 
 ---
 

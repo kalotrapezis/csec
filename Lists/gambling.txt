@@ -11,6 +11,16 @@
 # https://github.com/blocklistproject/Lists
 #
 
+0.0.0.0 bet365.com
+0.0.0.0 williamhill.com
+0.0.0.0 betway.com
+0.0.0.0 casumo.com
+0.0.0.0 unibet.com
+0.0.0.0 bwin.com
+0.0.0.0 opap.gr
+0.0.0.0 betsson.com
+0.0.0.0 leovegas.com
+0.0.0.0 pokerstars.eu
 0.0.0.0 10bet.com
 0.0.0.0 10luxury39.com
 0.0.0.0 12bet.com
@@ -107,7 +117,6 @@
 0.0.0.0 bet2earn.net
 0.0.0.0 bet3000.com
 0.0.0.0 bet33.com
-0.0.0.0 bet365.com
 0.0.0.0 bet365.es
 0.0.0.0 bet7days.com
 0.0.0.0 bet90.com
@@ -211,7 +220,6 @@
 0.0.0.0 betsocial.net
 0.0.0.0 betsonic.com
 0.0.0.0 betspawn.com
-0.0.0.0 betsson.com
 0.0.0.0 betstar.com.au
 0.0.0.0 betstars.com
 0.0.0.0 betswar.com
@@ -235,7 +243,6 @@
 0.0.0.0 betus.com.pa
 0.0.0.0 betusa.ag
 0.0.0.0 betvictor.com
-0.0.0.0 betway.com
 0.0.0.0 betworks.com
 0.0.0.0 betxchange.co.za
 0.0.0.0 betzest.com
@@ -280,7 +287,6 @@
 0.0.0.0 bulldog777.com
 0.0.0.0 bulletbets.com
 0.0.0.0 butterflybingo.com
-0.0.0.0 bwin.com
 0.0.0.0 cafecasino.lv
 0.0.0.0 campaign.rizk.com
 0.0.0.0 campeonbet.com
@@ -322,7 +328,6 @@
 0.0.0.0 casinotown.se
 0.0.0.0 casinowinner.com
 0.0.0.0 casinsi.com
-0.0.0.0 casumo.com
 0.0.0.0 cbmsport.com
 0.0.0.0 cc898.com
 0.0.0.0 celebbingo.com
@@ -715,7 +720,6 @@
 0.0.0.0 leisure888.com
 0.0.0.0 leojackpot.com
 0.0.0.0 leonbets.net
-0.0.0.0 leovegas.com
 0.0.0.0 letsbet.com
 0.0.0.0 libertyslots.eu
 0.0.0.0 liga365.com
@@ -921,7 +925,6 @@
 0.0.0.0 onlinecasino-eu.com
 0.0.0.0 onlinecasino.de
 0.0.0.0 onlywinners.com
-0.0.0.0 opap.gr
 0.0.0.0 opcrates.com
 0.0.0.0 optibet.com
 0.0.0.0 optionsports.com
@@ -972,7 +975,6 @@
 0.0.0.0 pokerimaa.com
 0.0.0.0 pokermax.com
 0.0.0.0 pokerstars.cz
-0.0.0.0 pokerstars.eu
 0.0.0.0 portail.lotoquebec.com
 0.0.0.0 postcodeloterij.nl
 0.0.0.0 potsofluck.com
@@ -1213,7 +1215,6 @@
 0.0.0.0 ubet.com
 0.0.0.0 ucabet.co
 0.0.0.0 ultimate-odds.com
-0.0.0.0 unibet.com
 0.0.0.0 unibet.com.au
 0.0.0.0 unionbet.com
 0.0.0.0 uptownaces.eu
@@ -1257,7 +1258,6 @@
 0.0.0.0 whitebet.com
 0.0.0.0 wildjackpots.com
 0.0.0.0 wildz.com
-0.0.0.0 williamhill.com
 0.0.0.0 williamhill.com.au
 0.0.0.0 wilsonbet.com
 0.0.0.0 win29.com

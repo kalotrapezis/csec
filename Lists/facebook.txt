@@ -11,6 +11,13 @@
 # https://github.com/blocklistproject/Lists
 #
 
+0.0.0.0 facebook.com
+0.0.0.0 messenger.com
+0.0.0.0 fb.com
+0.0.0.0 fbcdn.net
+0.0.0.0 facebook.net
+0.0.0.0 fb.me
+0.0.0.0 m.facebook.com
 0.0.0.0 0-1.fb.me
 0.0.0.0 0-144-243f1.fbjs.facebook.com
 0.0.0.0 0-157-99-m.lite.facebook.com
@@ -6344,7 +6351,6 @@
 0.0.0.0 face.messenger.com
 0.0.0.0 facebook-research.facebookmail.com
 0.0.0.0 facebook-web-clients.appspot.com
-0.0.0.0 facebook.com
 0.0.0.0 facebook.com.edgekey.net
 0.0.0.0 facebook.com.edgesuite.net
 0.0.0.0 facebook.de
@@ -6352,7 +6358,6 @@
 0.0.0.0 facebook.facebook.com
 0.0.0.0 facebook.fr
 0.0.0.0 facebook.messenger.com
-0.0.0.0 facebook.net
 0.0.0.0 facebook360.fb.com
 0.0.0.0 facebookbrand-2018-dev.fb.com
 0.0.0.0 facebookbrand-2018-preprod.fb.com
@@ -6439,7 +6444,6 @@
 0.0.0.0 fb.alpha.messenger.com
 0.0.0.0 fb.beta.facebook.com
 0.0.0.0 fb.beta.messenger.com
-0.0.0.0 fb.com
 0.0.0.0 fb.facebook.com
 0.0.0.0 fb.internmc.facebook.com
 0.0.0.0 fb.m.alpha.facebook.com
@@ -6447,7 +6451,6 @@
 0.0.0.0 fb.m.beta.facebook.com
 0.0.0.0 fb.m.beta.messenger.com
 0.0.0.0 fb.m.facebook.com
-0.0.0.0 fb.me
 0.0.0.0 fb.me.g.co.4g.fb.me
 0.0.0.0 fb.messenger.com
 0.0.0.0 fb03d261680-qbspybak1581928668-sonar.xz.fbcdn.net
@@ -6550,7 +6553,6 @@
 0.0.0.0 fbcdn-vthumb-a.akamaihd.net
 0.0.0.0 fbcdn.com
 0.0.0.0 fbcdn.fb.me
-0.0.0.0 fbcdn.net
 0.0.0.0 fbcec35f380-xkgtnwcp1587264617-sonar.xz.fbcdn.net
 0.0.0.0 fbcf5e1fe80-epjhhqcs1608683606-sonar.xz.fbcdn.net
 0.0.0.0 fbcf805c880-tdbelfdg1608691287-sonar.xz.fbcdn.net
@@ -12115,7 +12117,6 @@
 0.0.0.0 m.es-la.it-it.ro-ro.fbjs.facebook.com
 0.0.0.0 m.es-la.latest.facebook.com
 0.0.0.0 m.fa-ir.developers.prod.facebook.com
-0.0.0.0 m.facebook.com
 0.0.0.0 m.facebook.messenger.com
 0.0.0.0 m.fb.me
 0.0.0.0 m.fb.messenger.com
@@ -12867,7 +12868,6 @@
 0.0.0.0 mengima.fbjs.facebook.com
 0.0.0.0 mensajes.messenger.com
 0.0.0.0 mercury.snr.whatsapp.net
-0.0.0.0 messenger.com
 0.0.0.0 messenger.fb.com
 0.0.0.0 messengernews.fb.com
 0.0.0.0 messengerplatform.fb.com
