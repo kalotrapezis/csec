@@ -115,6 +115,15 @@ static int config_parse(CSec_Config *cfg, const char *json) {
         } else if (strcmp(key, "enabled_lists") == 0) {
             p = parse_string(p, cfg->enabled_lists, sizeof(cfg->enabled_lists));
             if (!p) return 0;
+        } else if (strcmp(key, "safesearch") == 0) {
+            int val = 0;
+            while (isdigit((unsigned char)*p)) { val = val * 10 + (*p - '0'); p++; }
+            cfg->safesearch = val ? 1 : 0;
+        } else if (strcmp(key, "youtube_mode") == 0) {
+            int val = 0;
+            while (isdigit((unsigned char)*p)) { val = val * 10 + (*p - '0'); p++; }
+            if (val < 0) val = 0; if (val > 2) val = 2;
+            cfg->youtube_mode = val;
         } else {
             /* Unknown key — skip value (strings and arrays only in our format) */
             if (*p == '"') {
@@ -143,6 +152,9 @@ int config_load(CSec_Config *cfg, const char *path) {
     /* Default password hash = SHA-256("123456") */
     strcpy(cfg->admin_hash,
            "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92");
+    /* SafeSearch / YouTube Restricted enabled by default */
+    cfg->safesearch   = 1;
+    cfg->youtube_mode = 2; /* strict */
 
     FILE *f = fopen(path, "rb");
     if (!f) return 0; /* missing file is not an error — start with empty list */
@@ -179,7 +191,9 @@ int config_save(const CSec_Config *cfg, const char *path) {
     fprintf(f, "  \"admin_hash\": \"%s\",\n", cfg->admin_hash);
     fprintf(f, "  \"mode\": \"%s\",\n", cfg->blacklist_mode ? "blacklist" : "whitelist");
     fprintf(f, "  \"presets\": %d,\n", cfg->preset_flags);
-    fprintf(f, "  \"enabled_lists\": \"%s\"\n}\n", cfg->enabled_lists);
+    fprintf(f, "  \"enabled_lists\": \"%s\",\n", cfg->enabled_lists);
+    fprintf(f, "  \"safesearch\": %d,\n", cfg->safesearch ? 1 : 0);
+    fprintf(f, "  \"youtube_mode\": %d\n}\n", cfg->youtube_mode);
 
     fclose(f);
     return 1;

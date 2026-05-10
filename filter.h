@@ -12,6 +12,8 @@ typedef struct {
     int  blacklist_mode;       /* 0 = whitelist (default), 1 = blacklist */
     int  preset_flags;         /* reserved — kept for config compatibility */
     char enabled_lists[512];   /* space-separated .txt list names, e.g. "gambling porn" */
+    int  safesearch;           /* 1 = force SafeSearch on Google search (default), 0 = off */
+    int  youtube_mode;         /* 0 = off, 1 = moderate, 2 = strict (default) */
 } CSec_Config;
 
 /* Load config from path. Returns 1 on success, 0 on failure (missing file = empty config). */
