@@ -2,6 +2,42 @@
 
 ---
 
+## 0.0.6 Alpha — 2026-05-10
+
+Forced SafeSearch on Google and YouTube Restricted Mode — cannot be turned
+off from the browser.
+
+### Added
+- **Safe Search row** in the main window, separate from the Block Lists
+  dialog: a checkbox for Google SafeSearch + three radio buttons for
+  YouTube (Off / Moderate / Strict). Defaults are *Google = on* and
+  *YouTube = strict*. Existing configs without the keys inherit these
+  defaults on first load
+- In-proxy DNS redirect: requests to `google.com` and `www.google.*`
+  (all country TLDs) are routed to `forcesafesearch.google.com`
+  (`216.239.38.120`); requests to `youtube.com`, `m.youtube.com`, and
+  the YouTube API hostnames are routed to `restrict.youtube.com`
+  (`216.239.38.120`, strict) or `restrictmoderate.youtube.com`
+  (`216.239.38.119`, moderate). The original Host header / SNI is
+  preserved, so TLS validates and Google serves the locked version
+- **`safesearch`** and **`youtube_mode`** fields added to
+  `csec-config.json`; changes apply instantly via the existing
+  `SERVICE_CONTROL_PARAMCHANGE` reload path — no service restart needed
+
+### Changed
+- Title bar now shows `0.0.6 Alpha` (the 0.0.5 build still displayed
+  the old `0.0.4 Alpha` string)
+- Main window grew by 47 px in height to fit the new Safe Search and
+  YouTube rows
+
+### Why this matters
+Browser-side SafeSearch toggles can be disabled by any logged-in student.
+The forced redirect happens at the network layer inside the CSec service,
+so it cannot be bypassed without stopping the service — and the proxy
+lock from 0.0.4 already prevents that.
+
+---
+
 ## 0.0.5 Alpha — 2026-04-24
 
 Progressive list loading — popular sites blocked instantly on startup.

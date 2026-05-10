@@ -28,8 +28,16 @@
 #define STR(x)  STR_(x)
 
 #define SERVICE_NAME "CSec"
-#define VERSION      "0.0.5 Alpha"
+#define VERSION      "0.0.6 Alpha"
 #define PROXY_PORT   8080
+
+/* SafeSearch redirect IPs (Google's published endpoints).
+   forcesafesearch.google.com    → 216.239.38.120  (Google search SafeSearch lock)
+   restrict.youtube.com          → 216.239.38.120  (YouTube Restricted Mode strict)
+   restrictmoderate.youtube.com  → 216.239.38.119  (YouTube Restricted Mode moderate) */
+#define SAFESEARCH_GOOGLE_IP        "216.239.38.120"
+#define YOUTUBE_RESTRICT_STRICT_IP  "216.239.38.120"
+#define YOUTUBE_RESTRICT_MOD_IP     "216.239.38.119"
 
 static char g_config_path[MAX_PATH];
 static char g_lists_dir[MAX_PATH];   /* <exe dir>\lists */
@@ -173,6 +181,33 @@ static void  extlists_load_all(void);
 static void  extlists_load_hot(void);
 static DWORD WINAPI bg_load_thread(LPVOID arg);
 
+/* If SafeSearch / YouTube Restricted is enabled and the host is a Google or
+   YouTube endpoint, return the IP of Google's enforcing endpoint — we connect
+   there instead of the real one, while keeping the original Host header / SNI
+   so the cert validates and the user transparently lands on the locked version. */
+static int is_youtube_host(const char *host) {
+    return (strcmp(host, "youtube.com") == 0           ||
+            strcmp(host, "www.youtube.com") == 0       ||
+            strcmp(host, "m.youtube.com") == 0         ||
+            strcmp(host, "youtubei.googleapis.com") == 0 ||
+            strcmp(host, "youtube.googleapis.com") == 0);
+}
+
+static const char *safesearch_redirect_ip(const char *host) {
+    /* Google search — covers google.com plus all country TLDs (google.gr, etc.).
+       The www.google.* prefix match catches them all. */
+    if (g_cfg.safesearch) {
+        if (strcmp(host, "google.com") == 0)        return SAFESEARCH_GOOGLE_IP;
+        if (strncmp(host, "www.google.", 11) == 0)  return SAFESEARCH_GOOGLE_IP;
+    }
+    /* YouTube — three modes. 0 = off, 1 = moderate, 2 = strict (default). */
+    if (g_cfg.youtube_mode > 0 && is_youtube_host(host)) {
+        return (g_cfg.youtube_mode == 2) ? YOUTUBE_RESTRICT_STRICT_IP
+                                         : YOUTUBE_RESTRICT_MOD_IP;
+    }
+    return NULL;
+}
+
 typedef struct { SOCKET from; SOCKET to; } TunnelArgs;
 
 static int recv_line(SOCKET s, char *buf, int len) {
@@ -235,7 +270,12 @@ static DWORD WINAPI handle_client(LPVOID arg) {
         struct addrinfo hints = {0}, *res = NULL;
         hints.ai_family = AF_UNSPEC; hints.ai_socktype = SOCK_STREAM;
         char ps[8]; sprintf(ps, "%d", port);
-        if (getaddrinfo(host, ps, &hints, &res) != 0) goto done;
+        /* SafeSearch: redirect to Google's enforcing endpoint. SNI + Host
+           are unchanged, so the cert validates and Google serves the locked
+           version of search/YouTube. */
+        const char *target = safesearch_redirect_ip(host);
+        if (!target) target = host;
+        if (getaddrinfo(target, ps, &hints, &res) != 0) goto done;
         SOCKET rem = socket(res->ai_family, SOCK_STREAM, 0);
         if (rem == INVALID_SOCKET || connect(rem, res->ai_addr, (int)res->ai_addrlen) != 0)
             { freeaddrinfo(res); if (rem != INVALID_SOCKET) closesocket(rem); goto done; }
@@ -263,7 +303,10 @@ static DWORD WINAPI handle_client(LPVOID arg) {
         }
         struct addrinfo hints2 = {0}, *res2 = NULL;
         hints2.ai_family = AF_UNSPEC; hints2.ai_socktype = SOCK_STREAM;
-        if (getaddrinfo(host, "80", &hints2, &res2) != 0) goto done;
+        /* SafeSearch redirect — see CONNECT branch above for explanation. */
+        const char *target2 = safesearch_redirect_ip(host);
+        if (!target2) target2 = host;
+        if (getaddrinfo(target2, "80", &hints2, &res2) != 0) goto done;
         SOCKET rem2 = socket(res2->ai_family, SOCK_STREAM, 0);
         if (rem2 == INVALID_SOCKET || connect(rem2, res2->ai_addr, (int)res2->ai_addrlen) != 0)
             { freeaddrinfo(res2); if (rem2 != INVALID_SOCKET) closesocket(rem2); goto done; }
@@ -454,14 +497,20 @@ static int svc_uninstall(void) {
 #define ID_RADIO_WHITE  114
 #define ID_RADIO_BLACK  115
 #define ID_BTN_PRESETS  116
+#define ID_CHK_SAFESEARCH 117
+#define ID_RADIO_YT_OFF      118
+#define ID_RADIO_YT_MODERATE 119
+#define ID_RADIO_YT_STRICT   120
 
 /* Window width/height (client area) */
 #define WIN_W 640
-#define WIN_H 474
+#define WIN_H 521
 
 static HWND g_hwnd;
 static HWND g_edit_pass, g_btn_login;
 static HWND g_radio_white, g_radio_black;
+static HWND g_chk_safesearch;
+static HWND g_radio_yt_off, g_radio_yt_mod, g_radio_yt_strict;
 static HWND g_edit_url,  g_btn_add;
 static HWND g_lv;
 static HWND g_btn_remove, g_btn_import, g_btn_export, g_btn_presets, g_btn_chgpwd;
@@ -1022,9 +1071,19 @@ static void do_presets(void) {
     SetForegroundWindow(g_hwnd);
 }
 
+static void sync_youtube_radios(int mode) {
+    SendMessage(g_radio_yt_off,    BM_SETCHECK, mode == 0 ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessage(g_radio_yt_mod,    BM_SETCHECK, mode == 1 ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessage(g_radio_yt_strict, BM_SETCHECK, mode == 2 ? BST_CHECKED : BST_UNCHECKED, 0);
+}
+
 static void enable_controls(int on) {
     EnableWindow(g_radio_white, on);
     EnableWindow(g_radio_black, on);
+    EnableWindow(g_chk_safesearch, on);
+    EnableWindow(g_radio_yt_off,    on);
+    EnableWindow(g_radio_yt_mod,    on);
+    EnableWindow(g_radio_yt_strict, on);
     EnableWindow(g_edit_url,   on);
     EnableWindow(g_btn_add,    on);
     EnableWindow(g_lv,         on);
@@ -1054,6 +1113,10 @@ static void do_login(void) {
                 g_acfg.blacklist_mode ? BST_UNCHECKED : BST_CHECKED, 0);
     SendMessage(g_radio_black, BM_SETCHECK,
                 g_acfg.blacklist_mode ? BST_CHECKED : BST_UNCHECKED, 0);
+    /* Sync SafeSearch checkbox + YouTube radios to saved state */
+    SendMessage(g_chk_safesearch, BM_SETCHECK,
+                g_acfg.safesearch ? BST_CHECKED : BST_UNCHECKED, 0);
+    sync_youtube_radios(g_acfg.youtube_mode);
     lv_refresh();
     SetFocus(g_edit_url);
 }
@@ -1529,22 +1592,41 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                           "Blacklist - allow all except list",
                           WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON,
                           120, 71, 490, 20, hwnd, (HMENU)ID_RADIO_BLACK, hi, NULL);
+            /* Row 2b — Safe Search (prominent, separate from Block Lists) */
+            CreateWindowA("STATIC", "Safe Search:", WS_CHILD|WS_VISIBLE,
+                          15, 99, 100, 18, hwnd, NULL, hi, NULL);
+            g_chk_safesearch = CreateWindowA("BUTTON",
+                          "Force SafeSearch on Google search  (recommended)",
+                          WS_CHILD|WS_VISIBLE|BS_AUTOCHECKBOX,
+                          120, 97, 490, 20, hwnd, (HMENU)ID_CHK_SAFESEARCH, hi, NULL);
+            /* Row 2c — YouTube Restricted Mode (Off / Moderate / Strict) */
+            CreateWindowA("STATIC", "YouTube:", WS_CHILD|WS_VISIBLE,
+                          15, 121, 100, 18, hwnd, NULL, hi, NULL);
+            g_radio_yt_off = CreateWindowA("BUTTON", "Off",
+                          WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON|WS_GROUP,
+                          120, 119, 60, 20, hwnd, (HMENU)ID_RADIO_YT_OFF, hi, NULL);
+            g_radio_yt_mod = CreateWindowA("BUTTON", "Moderate",
+                          WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON,
+                          185, 119, 90, 20, hwnd, (HMENU)ID_RADIO_YT_MODERATE, hi, NULL);
+            g_radio_yt_strict = CreateWindowA("BUTTON", "Strict  (recommended)",
+                          WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON,
+                          280, 119, 200, 20, hwnd, (HMENU)ID_RADIO_YT_STRICT, hi, NULL);
             /* Row 3 — add URL */
             CreateWindowA("STATIC", "URL", WS_CHILD|WS_VISIBLE,
-                          15, 106, 100, 18, hwnd, NULL, hi, NULL);
+                          15, 153, 100, 18, hwnd, NULL, hi, NULL);
             g_edit_url = CreateWindowA("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER,
-                                       120, 103, 370, 24, hwnd, (HMENU)ID_EDIT_URL, hi, NULL);
+                                       120, 150, 370, 24, hwnd, (HMENU)ID_EDIT_URL, hi, NULL);
             g_btn_add  = CreateWindowA("BUTTON", "Add", WS_CHILD|WS_VISIBLE,
-                                       500, 103, 114, 24, hwnd, (HMENU)ID_BTN_ADD, hi, NULL);
+                                       500, 150, 114, 24, hwnd, (HMENU)ID_BTN_ADD, hi, NULL);
             /* Hint below URL field */
             CreateWindowA("STATIC",
                           "Enter domain only - e.g.  code.org   (no https://, no www., no /path)",
                           WS_CHILD|WS_VISIBLE|SS_LEFTNOWORDWRAP,
-                          120, 130, 500, 16, hwnd, NULL, hi, NULL);
+                          120, 177, 500, 16, hwnd, NULL, hi, NULL);
             /* Domain list */
             g_lv = CreateWindowExA(WS_EX_CLIENTEDGE, WC_LISTVIEWA, "",
                                    WS_CHILD|WS_VISIBLE|LVS_REPORT|LVS_SHOWSELALWAYS|LVS_SINGLESEL,
-                                   15, 148, 610, 220, hwnd, (HMENU)ID_LV, hi, NULL);
+                                   15, 195, 610, 220, hwnd, (HMENU)ID_LV, hi, NULL);
             ListView_SetExtendedListViewStyle(g_lv,
                 LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
             LVCOLUMNA col = {0};
@@ -1554,35 +1636,39 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ListView_InsertColumn(g_lv, 0, &col);
             /* Bottom row — 5 equal buttons (120px each, 2px gaps) */
             g_btn_remove  = CreateWindowA("BUTTON", "Remove selected",
-                                          WS_CHILD|WS_VISIBLE, 15,  378, 120, 26,
+                                          WS_CHILD|WS_VISIBLE, 15,  425, 120, 26,
                                           hwnd, (HMENU)ID_BTN_REMOVE, hi, NULL);
             g_btn_import  = CreateWindowA("BUTTON", "Import from JSON",
-                                          WS_CHILD|WS_VISIBLE, 137, 378, 120, 26,
+                                          WS_CHILD|WS_VISIBLE, 137, 425, 120, 26,
                                           hwnd, (HMENU)ID_BTN_IMPORT, hi, NULL);
             g_btn_export  = CreateWindowA("BUTTON", "Export to JSON",
-                                          WS_CHILD|WS_VISIBLE, 259, 378, 120, 26,
+                                          WS_CHILD|WS_VISIBLE, 259, 425, 120, 26,
                                           hwnd, (HMENU)ID_BTN_EXPORT, hi, NULL);
             g_btn_presets = CreateWindowA("BUTTON", "Block Lists",
-                                          WS_CHILD|WS_VISIBLE, 381, 378, 120, 26,
+                                          WS_CHILD|WS_VISIBLE, 381, 425, 120, 26,
                                           hwnd, (HMENU)ID_BTN_PRESETS, hi, NULL);
             g_btn_chgpwd  = CreateWindowA("BUTTON", "Change Password",
-                                          WS_CHILD|WS_VISIBLE, 503, 378, 122, 26,
+                                          WS_CHILD|WS_VISIBLE, 503, 425, 122, 26,
                                           hwnd, (HMENU)ID_BTN_CHGPWD, hi, NULL);
             /* Separator */
             CreateWindowExA(0, "STATIC", "", WS_CHILD|WS_VISIBLE|SS_ETCHEDHORZ,
-                            15, 412, 610, 2, hwnd, NULL, hi, NULL);
+                            15, 459, 610, 2, hwnd, NULL, hi, NULL);
             /* Service status + install/uninstall — always visible, no login needed */
             g_static_svc = CreateWindowA("STATIC", "Service: checking...",
                                          WS_CHILD|WS_VISIBLE,
-                                         15, 423, 220, 20, hwnd, (HMENU)ID_STATIC_SVC, hi, NULL);
+                                         15, 470, 220, 20, hwnd, (HMENU)ID_STATIC_SVC, hi, NULL);
             g_btn_install = CreateWindowA("BUTTON", "Install Service",
                                           WS_CHILD|WS_VISIBLE,
-                                          245, 421, 170, 28, hwnd, (HMENU)ID_BTN_INSTALL, hi, NULL);
+                                          245, 468, 170, 28, hwnd, (HMENU)ID_BTN_INSTALL, hi, NULL);
             g_btn_uninstall = CreateWindowA("BUTTON", "Uninstall Service",
                                             WS_CHILD|WS_VISIBLE,
-                                            423, 421, 182, 28, hwnd, (HMENU)ID_BTN_UNINSTALL, hi, NULL);
+                                            423, 468, 182, 28, hwnd, (HMENU)ID_BTN_UNINSTALL, hi, NULL);
             /* Set initial radio state (config already loaded before CreateWindow) */
             SendMessage(g_radio_white, BM_SETCHECK, BST_CHECKED, 0);
+            /* Initial SafeSearch + YouTube state from loaded config */
+            SendMessage(g_chk_safesearch, BM_SETCHECK,
+                        g_acfg.safesearch ? BST_CHECKED : BST_UNCHECKED, 0);
+            sync_youtube_radios(g_acfg.youtube_mode);
             enable_controls(FALSE);
             SetFocus(g_edit_pass);
             return 0;
@@ -1611,6 +1697,25 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 case ID_BTN_IMPORT: if (g_logged_in) do_import();          break;
                 case ID_BTN_EXPORT:   if (g_logged_in) do_export();          break;
                 case ID_BTN_PRESETS:  if (g_logged_in) do_presets();        break;
+                case ID_CHK_SAFESEARCH:
+                    if (g_logged_in && HIWORD(wp) == BN_CLICKED) {
+                        g_acfg.safesearch =
+                            (SendMessage(g_chk_safesearch, BM_GETCHECK, 0, 0) == BST_CHECKED) ? 1 : 0;
+                        config_save(&g_acfg, g_config_path);
+                        notify_service();
+                    }
+                    break;
+                case ID_RADIO_YT_OFF:
+                case ID_RADIO_YT_MODERATE:
+                case ID_RADIO_YT_STRICT:
+                    if (g_logged_in && HIWORD(wp) == BN_CLICKED) {
+                        g_acfg.youtube_mode =
+                            (LOWORD(wp) == ID_RADIO_YT_OFF)      ? 0 :
+                            (LOWORD(wp) == ID_RADIO_YT_MODERATE) ? 1 : 2;
+                        config_save(&g_acfg, g_config_path);
+                        notify_service();
+                    }
+                    break;
                 case ID_BTN_CHGPWD:   if (g_logged_in) do_change_password(); break;
                 case ID_BTN_HELP:     show_help(); break;
                 case ID_BTN_INSTALL:  do_install_service(); break;
