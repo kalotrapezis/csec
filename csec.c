@@ -28,7 +28,7 @@
 #define STR(x)  STR_(x)
 
 #define SERVICE_NAME "CSec"
-#define VERSION      "0.0.6 Alpha"
+#define VERSION      "0.0.7 Alpha"
 #define PROXY_PORT   8080
 
 /* SafeSearch redirect IPs (Google's published endpoints).
@@ -62,16 +62,29 @@ static void resolve_config_path(void) {
 
 static void registry_set_proxy(int enable) {
     const char *proxy = "127.0.0.1:" STR(PROXY_PORT);
+    /* Bypass all RFC1918 LAN ranges, loopback, link-local and intranet names
+       so LAN apps (e.g. ClassGame on 192.168.x.x:3000) talk directly. */
+    const char *bypass =
+        "<local>;localhost;127.*;"
+        "10.*;"
+        "192.168.*;"
+        "172.16.*;172.17.*;172.18.*;172.19.*;"
+        "172.20.*;172.21.*;172.22.*;172.23.*;"
+        "172.24.*;172.25.*;172.26.*;172.27.*;"
+        "172.28.*;172.29.*;172.30.*;172.31.*;"
+        "169.254.*";
 
     /* HKCU — for the current user (correct when called from --install) */
     HKEY hk;
     if (RegOpenKeyExA(HKEY_CURRENT_USER, INET_KEY, 0, KEY_SET_VALUE, &hk) == ERROR_SUCCESS) {
         DWORD v = enable ? 1 : 0;
         RegSetValueExA(hk, "ProxyEnable", 0, REG_DWORD, (const BYTE *)&v, sizeof(v));
-        if (enable)
+        if (enable) {
             RegSetValueExA(hk, "ProxyServer", 0, REG_SZ,
                            (const BYTE *)proxy, (DWORD)strlen(proxy) + 1);
-        else {
+            RegSetValueExA(hk, "ProxyOverride", 0, REG_SZ,
+                           (const BYTE *)bypass, (DWORD)strlen(bypass) + 1);
+        } else {
             RegDeleteValueA(hk, "ProxyServer");
             RegDeleteValueA(hk, "ProxyOverride");
         }
@@ -87,6 +100,8 @@ static void registry_set_proxy(int enable) {
             RegSetValueExA(hp, "ProxyEnable", 0, REG_DWORD, (const BYTE *)&one, sizeof(one));
             RegSetValueExA(hp, "ProxyServer",  0, REG_SZ,
                            (const BYTE *)proxy, (DWORD)strlen(proxy) + 1);
+            RegSetValueExA(hp, "ProxyOverride", 0, REG_SZ,
+                           (const BYTE *)bypass, (DWORD)strlen(bypass) + 1);
             RegCloseKey(hp);
         }
         /* ProxySettingsPerUser=0 makes Windows use HKLM proxy for all accounts */

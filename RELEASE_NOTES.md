@@ -2,6 +2,47 @@
 
 ---
 
+## 0.0.7 Alpha — 2026-05-14
+
+LAN bypass — local network apps (e.g. ClassGame, intranet servers, printer
+admin pages) talk directly to the destination instead of being routed
+through the CSec proxy.
+
+### Added
+- **`ProxyOverride`** bypass list written to both `HKCU` and `HKLM`
+  Internet Settings on install. Bypasses:
+  - `<local>` (intranet hostnames without dots)
+  - `localhost`, `127.*` (loopback)
+  - `10.*`, `192.168.*` (RFC1918)
+  - `172.16.*` through `172.31.*` (RFC1918 /12, enumerated because the
+    Windows bypass syntax is glob-only, not CIDR)
+  - `169.254.*` (link-local / APIPA)
+
+### Fixed
+- LAN-hosted apps reachable by IP (`http://192.168.x.x:3000`, etc.) no
+  longer go through the CSec proxy. Previously they were silently
+  re-routed to port 80 of the target because the HTTP forward path in
+  the proxy hardcoded `:80` regardless of the requested port — breaking
+  any LAN service on a non-standard port and any WebSocket upgrade.
+- Reported against ClassGame (LAN classroom app on port 3000); same fix
+  also unblocks router admin pages, NAS web UIs, dev servers, etc.
+
+### Why this matters
+The CSec proxy is a domain-allowlist/blocklist filter for the public
+internet. LAN traffic has no place going through it — there is no
+domain to check, and the in-proxy forwarder doesn't support arbitrary
+ports or WebSocket tunneling. Bypassing LAN ranges at the WinINET
+layer is the standard pattern used by corporate proxies and is the
+correct fix.
+
+### Upgrading
+- The new bypass list is applied on the next `--install`. If you are
+  upgrading on a machine that already has CSec installed, run
+  `csec.exe → Uninstall Service` and then `Install Service` again so
+  the new `ProxyOverride` value gets written.
+
+---
+
 ## 0.0.6 Alpha — 2026-05-10
 
 Forced SafeSearch on Google and YouTube Restricted Mode — cannot be turned
