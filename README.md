@@ -12,7 +12,7 @@ Blocks all websites except the ones you allow, or allows everything except
 the sites you block. Runs as a Windows Service. Survives reboot.
 No internet connection required.
 
-**Version:** 0.0.7 Alpha
+**Version:** 0.0.9 Alpha
 
 ---
 
@@ -31,8 +31,19 @@ No internet connection required.
 
 ## Requirements
 
+**Windows**
 - Windows 7 SP1 or later (32-bit or 64-bit)
 - Administrator rights to install and uninstall
+
+**Linux** (tested target: Fedora KDE, Linux Mint)
+- systemd, a C toolchain (`cc`/gcc), and `make`
+- `root` (sudo) to install/uninstall
+- `gsettings` (GNOME/Cinnamon) and/or `kwriteconfig5`/`kwriteconfig6` (KDE) for
+  desktop-proxy enforcement — both are present by default on the target distros
+
+> Windows and Linux share one codebase. The filtering proxy engine (`proxy.c`)
+> is identical on both; only the frontend differs — a Win32 service + GUI on
+> Windows (`csec.c`), a systemd daemon + CLI on Linux (`csec_posix.c`).
 
 ---
 
@@ -242,14 +253,151 @@ CSec sets the Windows system proxy. It is a deterrent, not a full lockdown.
 
 ---
 
+## Linux (Fedora KDE / Linux Mint)
+
+On Linux the filter runs as a **systemd service** and is managed from the
+command line. The proxy is enforced through the desktop proxy settings
+(GNOME/Cinnamon `gsettings`, KDE `kioslaverc`) plus `/etc/environment`.
+
+### Install
+
+```
+make                 # builds ./csec
+sudo ./csec install  # installs to /usr/local/bin, starts the service, turns on the proxy
+```
+
+On first install this launches a **guided setup wizard** — pick one of four
+presets or answer a few questions to choose the mode, SafeSearch/YouTube,
+category block lists, allowed sites, and an admin password. Re-run it anytime:
+
+```
+sudo csec setup
+```
+
+The four presets:
+
+| # | Preset | Mode | Category lists |
+|---|---|---|---|
+| 1 | Locked down | whitelist | all blocked |
+| 2 | Block bad categories | blacklist | all blocked |
+| 3 | Locked down, allow ads | whitelist | all except ads |
+| 4 | Block bad categories, allow ads | blacklist | all except ads |
+
+(All presets force Google SafeSearch and YouTube strict mode.)
+
+Log out and back in so every app picks up the new proxy. Config and lists are
+stored under `/etc/csec/`.
+
+### Manage
+
+```
+csec help                         # full, explained command reference
+csec status                       # service + filter status
+sudo csec add code.org            # allow a site (adds known CDN/auth extras too)
+sudo csec remove code.org
+csec list                         # show the current site list
+sudo csec mode whitelist          # or: blacklist
+sudo csec safesearch on           # force Google SafeSearch
+sudo csec youtube strict          # off | moderate | strict
+csec lists                        # show categories and what's blocked
+sudo csec block gambling          # block a whole category (blacklist mode only)
+sudo csec unblock gambling        # stop blocking it
+sudo csec passwd                  # change admin password
+sudo csec import list.json        # import / export a config
+csec export list.json
+sudo csec uninstall               # remove the service, restore the proxy
+```
+
+> On Linux the admin gate is `sudo` (config lives in root-owned `/etc/csec/`).
+> The password is kept for parity and used by `csec passwd` / list import-export.
+
+### Enforcement modes (Linux)
+
+CSec can enforce the filter two ways — choose in `csec setup` or switch anytime:
+
+```
+sudo csec enforcement transparent   # recommended: can't be bypassed
+sudo csec enforcement proxy          # desktop/system proxy only (a deterrent)
+```
+
+| Mode | How it works | Bypassable? |
+|---|---|---|
+| **transparent** | `nftables` redirects all outbound :80/:443 through the proxy; hostname is read from the HTTP `Host:` header / TLS **SNI**. The browser's own proxy setting is irrelevant. | No (short of root / a VPN / another network) |
+| **proxy** | Sets the GNOME/KDE/`/etc/environment` system proxy. | Yes — a student can change their browser's proxy, `unset http_proxy`, etc. |
+
+Transparent mode skips traffic owned by **root** (so the proxy never loops, and
+system services stay direct) and **rejects IPv6** :80/:443 so it can't be used
+to slip past the IPv4 redirect. It needs the `nftables` package. Students must
+not have `sudo`/root, or they can remove the rules.
+
+> Even transparent mode is host-based (HTTP Host / TLS SNI), not a full MITM —
+> it does not decrypt HTTPS. A VPN, a phone hotspot, or a direct IP with a
+> spoofed SNI can still get around it. For a hardened network, combine it with
+> router-level filtering.
+
+### Packages (.deb / .rpm)
+
+Native packages are the supported way to deploy to many machines:
+
+| Distro | Package | Install | Remove |
+|---|---|---|---|
+| **Linux Mint** (Debian/Ubuntu) | `.deb` | `sudo apt install ./csec_*.deb` | `sudo apt remove csec` |
+| **Fedora KDE** | `.rpm` | `sudo dnf install ./csec-*.rpm` | `sudo dnf remove csec` |
+
+Both are produced from a single [`packaging/nfpm.yaml`](packaging/nfpm.yaml)
+with [nfpm](https://nfpm.goreleaser.com):
+
+```
+make            # build ./csec first
+make deb        # -> dist/csec_<ver>_amd64.deb
+make rpm        # -> dist/csec-<ver>.x86_64.rpm
+make package    # both
+```
+
+The package lays down the binary (`/usr/bin/csec`), the block lists
+(`/usr/share/csec/lists/`) and the systemd unit, but does **not** turn the
+filter on. After installing the package, activate it (this enables the service
+and sets the proxy):
+
+```
+sudo csec install
+```
+
+To switch the filter off again, run `sudo csec uninstall` **before** removing
+the package (that fully restores the per-user desktop proxy). Removing the
+package alone stops the service and clears the system-wide proxy.
+
+> Sandboxed formats (Flatpak/Snap/AppImage) are intentionally **not** used:
+> CSec installs a systemd service and edits system proxy settings, which those
+> sandboxes forbid.
+
+---
+
 ## Building from source
 
-Requires MinGW-w64 (`gcc` targeting `i686-w64-mingw32`).
+One codebase, two targets — the `Makefile` auto-detects the OS.
+
+**Linux (native):**
 
 ```
-gcc -std=c99 -O2 -o csec.exe csec.c filter.c \
-  -static -lws2_32 -ladvapi32 -lcrypt32 -lcomctl32 -lcomdlg32 -lshell32 -mwindows
+make            # -> ./csec  (cc -std=gnu11 ... -pthread)
 ```
+
+**Windows (MinGW-w64, cross-compilable from Linux):**
+
+```
+make windows    # -> csec.exe  (i686-w64-mingw32-gcc)
+```
+
+Or directly:
+
+```
+i686-w64-mingw32-gcc -std=gnu11 -O2 -o csec.exe csec.c proxy.c filter.c sha256.c \
+  -static -lws2_32 -ladvapi32 -lcomctl32 -lcomdlg32 -lshell32 -mwindows
+```
+
+Shared sources: `proxy.c` (engine), `filter.c` (config + matching),
+`sha256.c` (bundled hash — no OpenSSL/CryptoAPI dependency).
 
 ---
 

@@ -14,6 +14,7 @@ typedef struct {
     char enabled_lists[512];   /* space-separated .txt list names, e.g. "gambling porn" */
     int  safesearch;           /* 1 = force SafeSearch on Google search (default), 0 = off */
     int  youtube_mode;         /* 0 = off, 1 = moderate, 2 = strict (default) */
+    int  transparent;          /* 0 = desktop-proxy enforcement, 1 = nftables transparent redirect (Linux) */
 } CSec_Config;
 
 /* Load config from path. Returns 1 on success, 0 on failure (missing file = empty config). */
