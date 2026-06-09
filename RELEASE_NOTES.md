@@ -2,6 +2,45 @@
 
 ---
 
+## 0.0.9 Alpha — 2026-06-09
+
+**Linux support — CSec is now cross-platform.** One codebase builds the Windows
+service + GUI and a Linux systemd daemon + CLI from a single shared filtering
+engine.
+
+### Added
+- **Linux build** (tested on Fedora KDE and Linux Mint): a `csec` command-line
+  admin + a systemd service, installable as a native package.
+- **`.deb` and `.rpm` packages**, produced from one `packaging/nfpm.yaml`.
+- **Two enforcement modes on Linux** (`csec enforcement transparent|proxy`):
+  - **transparent** (recommended): `nftables` redirects all outbound `:80`/`:443`
+    through the filter; the hostname is read from the HTTP `Host:` header or the
+    TLS **SNI**, so a browser's own proxy setting can't bypass it. Skips root,
+    loopback and LAN (`10/8`, `172.16/12`, `192.168/16`, `169.254/16`), and
+    rejects IPv6 web traffic so it can't be used to slip past the redirect.
+  - **proxy**: sets the GNOME/KDE/`/etc/environment` system proxy (a deterrent),
+    with the same LAN bypass list as Windows.
+- **Guided setup wizard** (`csec setup`): four presets plus a custom flow for
+  mode, SafeSearch/YouTube, category lists, allowed sites and the admin password.
+- **Clearer category commands**: `csec block <category>` / `csec unblock <category>`
+  replace the confusing `lists enable/disable` (kept as hidden aliases).
+- Bundled public-domain **SHA-256**, removing the OpenSSL / Windows CryptoAPI
+  dependency on both platforms.
+
+### Fixed
+- **HTTP `Host:` header parsing** (`strip_host`): a leading space and trailing
+  newline were never stripped, which could cause allowed sites to be blocked on
+  the plain-HTTP request path. Latent on Windows (browsers use HTTPS `CONNECT`,
+  where the host comes from the request line); surfaced and fixed on Linux.
+
+### Changed
+- Restructured into a shared cross-platform engine (`proxy.c`, `filter.c`,
+  `sha256.c`) plus thin per-OS frontends (`csec.c` for Windows, `csec_posix.c`
+  + `transparent.c` for Linux) behind a small `compat.h` shim. The `Makefile`
+  auto-detects the OS; `make windows` cross-compiles the Windows build.
+
+---
+
 ## 0.0.7 Alpha — 2026-05-14
 
 LAN bypass — local network apps (e.g. ClassGame, intranet servers, printer

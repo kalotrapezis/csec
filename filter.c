@@ -1,8 +1,8 @@
 #include "filter.h"
+#include "sha256.h"
 
-#include <windows.h>
-#include <wincrypt.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -124,6 +124,10 @@ static int config_parse(CSec_Config *cfg, const char *json) {
             while (isdigit((unsigned char)*p)) { val = val * 10 + (*p - '0'); p++; }
             if (val < 0) val = 0; if (val > 2) val = 2;
             cfg->youtube_mode = val;
+        } else if (strcmp(key, "transparent") == 0) {
+            int val = 0;
+            while (isdigit((unsigned char)*p)) { val = val * 10 + (*p - '0'); p++; }
+            cfg->transparent = val ? 1 : 0;
         } else {
             /* Unknown key — skip value (strings and arrays only in our format) */
             if (*p == '"') {
@@ -193,7 +197,8 @@ int config_save(const CSec_Config *cfg, const char *path) {
     fprintf(f, "  \"presets\": %d,\n", cfg->preset_flags);
     fprintf(f, "  \"enabled_lists\": \"%s\",\n", cfg->enabled_lists);
     fprintf(f, "  \"safesearch\": %d,\n", cfg->safesearch ? 1 : 0);
-    fprintf(f, "  \"youtube_mode\": %d\n}\n", cfg->youtube_mode);
+    fprintf(f, "  \"youtube_mode\": %d,\n", cfg->youtube_mode);
+    fprintf(f, "  \"transparent\": %d\n}\n", cfg->transparent ? 1 : 0);
 
     fclose(f);
     return 1;
@@ -271,27 +276,9 @@ int domain_remove(CSec_Config *cfg, const char *domain) {
 }
 
 void sha256_hex(const char *input, char out[65]) {
-    HCRYPTPROV prov = 0;
-    HCRYPTHASH hash = 0;
-    BYTE digest[32];
-    DWORD digest_len = sizeof(digest);
-
-    out[0] = '\0';
-
-    if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
-        return;
-    if (!CryptCreateHash(prov, CALG_SHA_256, 0, 0, &hash))
-        goto cleanup;
-    if (!CryptHashData(hash, (const BYTE *)input, (DWORD)strlen(input), 0))
-        goto cleanup;
-    if (!CryptGetHashParam(hash, HP_HASHVAL, digest, &digest_len, 0))
-        goto cleanup;
-
-    for (DWORD i = 0; i < digest_len; i++)
+    unsigned char digest[32];
+    sha256(input, strlen(input), digest);
+    for (int i = 0; i < 32; i++)
         sprintf(out + i * 2, "%02x", digest[i]);
     out[64] = '\0';
-
-cleanup:
-    if (hash) CryptDestroyHash(hash);
-    if (prov) CryptReleaseContext(prov, 0);
 }
